@@ -1,2 +1,2 @@
-# zig-net
+# zig-flecs-networking
  

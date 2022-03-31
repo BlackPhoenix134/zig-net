@@ -1,0 +1,3 @@
+[submodule "libs/zig-flecs"]
+	path = libs/zig-flecs
+	url = https://github.com/BlackPhoenix134/zig-flecs
