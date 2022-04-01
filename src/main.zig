@@ -1,7 +1,84 @@
 const std = @import("std");
 const net = @import("net");
+const s2s = @import("s2s");
+
 
 pub fn main() !void {
+  //try s2sPlayground();
+  //try netPlayground();
+  try packetPlayground();
+}
+
+pub fn packetPlayground() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var allocator = gpa.allocator();
+    _ = allocator;
+
+    const Struct1 = struct {
+        age: u16,
+        weight: u16,
+    };
+
+    var val1 = Struct1{.age = 10, .weight = 20};
+
+    var packet1 = net.data.PacketInfo(Struct1).init(0, val1);
+    var data = std.ArrayList(u8).init(allocator);
+    defer data.deinit();
+    try s2s.serialize(data.writer(), net.data.PacketInfo(Struct1), packet1);
+
+    var stream = std.io.fixedBufferStream(data.items);
+    var deserialized = try s2s.deserialize(stream.reader(), net.data.PacketInfo(Struct1));
+
+    std.log.debug("{}", .{deserialized});
+}
+
+pub fn s2sPlayground() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var allocator = gpa.allocator();
+
+
+    const Type2 = struct {
+        val: u16,
+    };
+
+    const Type1 = struct {
+        packetId: u16,
+        age: u16,
+        weight: u16,
+        t2: *Type2,
+    };
+
+    var t2ptr = try allocator.create(Type2);
+    t2ptr.* = Type2{.val = 10};
+    defer allocator.destroy(t2ptr);
+
+    var val1 = Type1{
+            .packetId = 1, .age = 20, .weight = 68 ,
+            .t2 = t2ptr,
+        };
+
+    var data = std.ArrayList(u8).init(allocator);
+    defer data.deinit();
+
+    for(data.items) |value, i| {
+         std.log.debug("{}: {}", .{i, value});
+    }
+
+    try s2s.serialize(data.writer(), Type1, val1);
+
+    var stream = std.io.fixedBufferStream(data.items);
+    // var deserialized = try s2s.deserializeAlloc(stream.reader(), Type1, allocator);
+    // defer s2s.free(allocator, Type1, &deserialized);
+
+    var deserialized = try s2s.deserializeAlloc(stream.reader(), Type1, allocator);
+    defer s2s.free(allocator, Type1, &deserialized);
+
+    std.log.debug("after deserialize", .{});
+    std.log.debug("{}", .{val1});
+    std.log.debug("{}", .{deserialized});
+}
+
+pub fn netPlayground() !void {
     std.log.debug("test", .{});
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();

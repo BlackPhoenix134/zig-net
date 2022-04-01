@@ -4,7 +4,6 @@ pub const data = @import("data.zig");
 
 pub fn init() !void {
    try zenet.initialize();
-
 }
 
 pub fn deinit() void {

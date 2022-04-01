@@ -1,19 +1,24 @@
 const std = @import("std");
 
+
+const zenet_pkg = std.build.Pkg{
+        .name = "zenet",
+        .path = .{ .path = "libs/zenet/src/zenet.zig" },
+};
+
+const zig_net_pkg = std.build.Pkg{
+    .name = "net",
+    .path = .{ .path = "src/net.zig" },
+};
+
+const s2s_pkg = std.build.Pkg{
+    .name = "s2s",
+    .path = .{ .path = "libs/s2s/src/s2s.zig" },
+};
+
 pub fn build(b: *std.build.Builder) void {
     const target = b.standardTargetOptions(.{});
     const mode = b.standardReleaseOptions();
-
-
-    const zenet_pkg = std.build.Pkg{
-            .name = "zenet",
-            .path = .{ .path = "libs/zenet/src/zenet.zig" },
-        };
-
-    const zig_net = std.build.Pkg{
-        .name = "net",
-        .path = .{ .path = "src/net.zig" },
-    };
 
     const main_exe = b.addExecutable("main", "src/main.zig");
     main_exe.setTarget(target);
@@ -25,9 +30,12 @@ pub fn build(b: *std.build.Builder) void {
     const main_run_step = b.step("run", "Runs main");
     main_run_step.dependOn(&main_run.step);
 
+    main_exe.addPackage(zig_net_pkg);
+
     @import("libs/zenet/build.zig").link(b, main_exe);
     main_exe.addPackage(zenet_pkg);
-    main_exe.addPackage(zig_net);
+    
+    main_exe.addPackage(s2s_pkg);
 
 
     // var exe = b.addExecutable("network-main", "src/main.zig");
