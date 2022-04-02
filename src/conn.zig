@@ -1,6 +1,14 @@
 const std = @import("std");
 const zenet = @import("zenet");
-const data = @import("data");
+const data = @import("data.zig");
+const s2s = @import("s2s");
+
+// fn createZenetPacket(data: []u8) !zenet.Packet {
+//     var data = std.ArrayList(u8).init(allocator);
+//     defer data.deinit(); //bytes are copied, clearing buffer is fine ToDo: reuse serialize buffer
+//     try s2s.serialize(data.wrietr(), net.data.PacketInfo(T), packet1);
+//     return try zenet.Packet.create(data.items, .{}); 
+// }
 
 pub const Server = struct {
     const Self = @This();
@@ -23,9 +31,11 @@ pub const Server = struct {
         self.allocator.destroy(self);
     }
 
-
-    // pub fn broadcast(self: *Self) void {
+    //broadcasts packetInfo to all peers connected
+    // pub fn broadcast(self: *Self, packetInfo: anytype) !void {
         
+    //     var packet = zenet.Packet.create(data: []u8, flags: PacketFlags)
+    //     self.host.broadcast(0, packet: *Packet)
     // }
 
     pub fn tick(self: *Self) !void {

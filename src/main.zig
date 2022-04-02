@@ -1,6 +1,7 @@
 const std = @import("std");
 const net = @import("net");
 const s2s = @import("s2s");
+const zenet = @import("zenet");
 
 
 pub fn main() !void {
@@ -24,12 +25,16 @@ pub fn packetPlayground() !void {
     var packet1 = net.data.PacketInfo(Struct1).init(0, val1);
     var data = std.ArrayList(u8).init(allocator);
     defer data.deinit();
-    try s2s.serialize(data.writer(), net.data.PacketInfo(Struct1), packet1);
+    try packet1.serialize(data.writer());
+
+    // var packet = try zenet.Packet.create(data.items, .{});
+    // defer packet.destroy();
+    // std.log.debug("{} {}", .{data.items.len, packet.dataLength});
 
     var stream = std.io.fixedBufferStream(data.items);
-    var deserialized = try s2s.deserialize(stream.reader(), net.data.PacketInfo(Struct1));
+    var deserialized = try net.data.PacketInfo(Struct1).deserialize(stream);
 
-    std.log.debug("{}", .{deserialized});
+    std.log.debug("{} \n {}", .{packet1, deserialized});
 }
 
 pub fn s2sPlayground() !void {
