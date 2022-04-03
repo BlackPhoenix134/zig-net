@@ -2,6 +2,7 @@ const std = @import("std");
 const net = @import("net");
 const s2s = @import("s2s");
 const zenet = @import("zenet");
+const ev = @import("events");
 
 const T1 = struct {
     age: u32

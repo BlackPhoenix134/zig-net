@@ -2,6 +2,7 @@ const std = @import("std");
 const zenet = @import("zenet");
 const data = @import("data.zig");
 const s2s = @import("s2s");
+const ev = @import("events");
 
 fn createZenetPacket(allocator: std.mem.Allocator, packet_info: anytype) !*zenet.Packet {
     // var buffer: [255]u8 = undefined; //ToDo: find a smart way to limit buffer length at runtime (calc size of packet info), because otherwise it sends the whole thing
@@ -19,23 +20,32 @@ pub const Server = struct {
     allocator: std.mem.Allocator,
     address: zenet.Address,
     host: *zenet.Host,
-    
+    client_connected_signal: *ev.Signal(u32),
+    client_disconnected_signal: *ev.Signal(u32),
+
     pub fn create(allocator: std.mem.Allocator, port: u16) !*Self {
         var ptr = try allocator.create(Self);
         var address: zenet.Address = std.mem.zeroes(zenet.Address);
         address.host = zenet.HOST_ANY;
         address.port = port;
         var host = try zenet.Host.create(address, 1, 1, 0, 0);
-        ptr.* = .{ .allocator = allocator, .address = address, .host = host };
+        ptr.* = .{ 
+            .allocator = allocator, 
+            .address = address, 
+            .host = host,
+            .client_connected_signal = ev.Signal(u32).create(allocator),
+            .client_disconnected_signal = ev.Signal(u32).create(allocator)};
         return ptr;
     }
 
     pub fn destroy(self: *Self) void {
+        self.client_disconnected_signal.deinit();
+        self.client_connected_signal.deinit();
         self.host.destroy();
         self.allocator.destroy(self);
     }
 
-    //broadcasts packetInfo to all peers connected
+    //broadcasts to all peers connected
     pub fn broadcast(self: *Self, packet_info: anytype) !void {
         var packet = try createZenetPacket(self.allocator, packet_info); //ToDo: cleanup
         self.host.broadcast(0, packet);
@@ -52,6 +62,7 @@ pub const Server = struct {
                         "A new client connected from {d}:{d}.",
                         .{ event.peer.?.address.host, event.peer.?.address.port },
                     );
+                    self.client_connected_signal.publish(123);
                 },
                 .receive => {
                     if (event.packet) |packet| {
@@ -65,6 +76,7 @@ pub const Server = struct {
                 .disconnect => {
                     std.log.debug("{s} disconnected.", .{event.peer.?.data});
                     event.peer.?.data = null;
+                    self.client_disconnected_signal.publish(456);
                 },
                 else => {
                     std.log.debug("ugh!", .{});
@@ -81,17 +93,27 @@ pub const Client = struct {
     client: *zenet.Host = null,
     peer: ?*zenet.Peer = null,
 
+    connected_signal: *ev.Signal(u32),
+    disconnected_signal: *ev.Signal(u32),
+
     pub fn create(allocator: std.mem.Allocator, host: [*:0]const u8, port: u16) !*Self {
         var ptr = try allocator.create(Self);
         var address: zenet.Address = std.mem.zeroes(zenet.Address);
         try address.set_host(host);
         var client = try zenet.Host.create(null, 1, 1, 0, 0);
         address.port = port;
-        ptr.* = .{ .allocator = allocator, .address = address, .client = client };
+        ptr.* = .{ 
+            .allocator = allocator,
+            .address = address,
+            .client = client,
+            .connected_signal = ev.Signal(u32).create(allocator),
+            .disconnected_signal = ev.Signal(u32).create(allocator)};
         return ptr;
     }
 
     pub fn destroy(self: *Self) void {
+        self.disconnected_signal.deinit();
+        self.connected_signal.deinit();
         self.client.destroy();
         self.allocator.destroy(self);
     }
@@ -103,6 +125,7 @@ pub const Client = struct {
         if (try self.client.service(&event, 5000)) {
             if (event.type == zenet.EventType.connect) {
                 std.log.debug("Connection to 127.0.0.1:7777 succeeded!", .{});
+                self.connected_signal.publish(123);
             }
         }
     }
@@ -113,20 +136,24 @@ pub const Client = struct {
         while (try self.client.service(&event, 3000)) {
             switch (event.type) {
                 .receive => {
-                    if (event.packet) |packet| {
+                    if (event.packet) |packet| { //Dispose everything we receive while disconnecting
                         packet.destroy();
                     }
                 },
                 .disconnect => {
                     std.log.debug("Disconnect succeeded!", .{});
+                    self.disconnected_signal.publish(456);
                 },
                 else => {},
             }
         }
     }
 
-    // pub fn send(self: *Self, packet: data.Packet) !void {
-
+    //send to client
+    // pub fn send(self: *Self, packet_info: anytype) !void {
+    //     var packet = try createZenetPacket(self.allocator, packet_info); //ToDo: cleanup
+    //     self.peer.?.sen
+    //     self.host.broadcast(0, packet);
     // }
 
     pub fn tick(self: *Self) !void {
@@ -145,7 +172,7 @@ pub const Client = struct {
                         var buffer = data_pointer[0..packet.dataLength];
                         var stream = std.io.fixedBufferStream(buffer);
                         var id = try s2s.deserialize(stream.reader(), u32);
-                        onPacketReceived(id, stream);
+                        try onPacketReceived(id, stream);
                     }
                 },
                 else => {},
@@ -154,6 +181,7 @@ pub const Client = struct {
     }
 
     fn onPacketReceived(id: u32, stream: anytype) !void {
+        _ = stream;
         std.log.debug("got packet with id {}", .{id});
     }
 };

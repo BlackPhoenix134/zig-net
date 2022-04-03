@@ -1,7 +1,7 @@
 const std = @import("std");
 
 pub fn typeId(comptime T: type) u32 {
-    return utils.hashStringFnv(u32, @typeName(T));
+    comptime return hashStringFnv(u32, @typeName(T));
 }
 
 pub fn hashStringDjb2(comptime str: []const u8) comptime_int {
