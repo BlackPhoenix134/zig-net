@@ -7,8 +7,8 @@ const zenet = @import("zenet");
 pub fn main() !void {
     //try s2sPlayground();
     //try netPlayground();
-    //try packetPlayground();
-    try idPlayground();
+    try packetPlayground();
+    //try idPlayground();
 }
 
 pub fn idPlayground() !void {
@@ -23,14 +23,17 @@ pub fn packetPlayground() !void {
     var allocator = gpa.allocator();
     _ = allocator;
 
-    const Struct1 = struct {
+    const T1 = struct {};
+    const T2 = struct {
         age: u16,
         weight: u16,
     };
+    const T3 = struct {};
 
-    var val1 = Struct1{.age = 10, .weight = 20};
+    var val1 = T2{.age = 10, .weight = 20};
+    net.data.registerTypes(.{T1, T2, T3});
 
-    var packet1 = net.data.PacketInfo(Struct1).init(0, val1);
+    var packet1 = try net.data.PacketInfo(T2).init(val1);
     var data = std.ArrayList(u8).init(allocator);
     defer data.deinit();
     try packet1.serialize(data.writer());
@@ -38,8 +41,8 @@ pub fn packetPlayground() !void {
    
     var stream = std.io.fixedBufferStream(data.items);
     var id = try s2s.deserialize(stream.reader(), u16);
-    if(id == 0) {
-        var deserialized = try net.data.PacketInfo(Struct1).deserialize(id, stream.reader());
+    if(id == 1) {
+        var deserialized = try net.data.PacketInfo(T2).deserialize(stream.reader());
         std.log.debug("{} \n {}", .{packet1, deserialized});
     }
 
@@ -48,97 +51,98 @@ pub fn packetPlayground() !void {
     // std.log.debug("{} {}", .{data.items.len, packet.dataLength});
 }
 
-pub fn s2sPlayground() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    var allocator = gpa.allocator();
+// pub fn s2sPlayground() !void {
+//     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+//     var allocator = gpa.allocator();
 
 
-    const Type2 = struct {
-        val: u16,
-    };
+//     const Type2 = struct {
+//         val: u16,
+//     };
 
-    const Type1 = struct {
-        packetId: u16,
-        age: u16,
-        weight: u16,
-        t2: *Type2,
-    };
+//     const Type1 = struct {
+//         packetId: u16,
+//         age: u16,
+//         weight: u16,
+//         t2: *Type2,
+//     };
 
-    var t2ptr = try allocator.create(Type2);
-    t2ptr.* = Type2{.val = 10};
-    defer allocator.destroy(t2ptr);
+//     var t2ptr = try allocator.create(Type2);
+//     t2ptr.* = Type2{.val = 10};
+//     defer allocator.destroy(t2ptr);
 
-    var val1 = Type1{
-            .packetId = 1, .age = 20, .weight = 68 ,
-            .t2 = t2ptr,
-        };
+//     var val1 = Type1{
+//             .packetId = 1, .age = 20, .weight = 68 ,
+//             .t2 = t2ptr,
+//         };
 
-    var data = std.ArrayList(u8).init(allocator);
-    defer data.deinit();
+//     var data = std.ArrayList(u8).init(allocator);
+//     defer data.deinit();
 
-    for(data.items) |value, i| {
-         std.log.debug("{}: {}", .{i, value});
-    }
+//     for(data.items) |value, i| {
+//          std.log.debug("{}: {}", .{i, value});
+//     }
 
-    try s2s.serialize(data.writer(), Type1, val1);
+//     try s2s.serialize(data.writer(), Type1, val1);
 
-    var stream = std.io.fixedBufferStream(data.items);
-    // var deserialized = try s2s.deserializeAlloc(stream.reader(), Type1, allocator);
-    // defer s2s.free(allocator, Type1, &deserialized);
+//     var stream = std.io.fixedBufferStream(data.items);
+//     // var deserialized = try s2s.deserializeAlloc(stream.reader(), Type1, allocator);
+//     // defer s2s.free(allocator, Type1, &deserialized);
 
-    var deserialized = try s2s.deserializeAlloc(stream.reader(), Type1, allocator);
-    defer s2s.free(allocator, Type1, &deserialized);
+//     var deserialized = try s2s.deserializeAlloc(stream.reader(), Type1, allocator);
+//     defer s2s.free(allocator, Type1, &deserialized);
 
-    std.log.debug("after deserialize", .{});
-    std.log.debug("{}", .{val1});
-    std.log.debug("{}", .{deserialized});
-}
+//     std.log.debug("after deserialize", .{});
+//     std.log.debug("{}", .{val1});
+//     std.log.debug("{}", .{deserialized});
+// }
 
-pub fn netPlayground() !void {
-    std.log.debug("test", .{});
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-    defer _ = gpa.deinit();
+// pub fn netPlayground() !void {
+//     std.log.debug("test", .{});
+//     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+//     const allocator = gpa.allocator();
+//     defer _ = gpa.deinit();
     
-    try net.init();
-    defer net.deinit();
+//     try net.init();
+//     defer net.deinit();
+//     net.data.registerTypes(.{T1, T2, T3});
 
-    var server = try net.conn.Server.create(allocator, 8081);
-    defer server.destroy();
+//     var server = try net.conn.Server.create(allocator, 8081);
+//     defer server.destroy();
 
-    var client = try net.conn.Client.create(allocator, "127.0.0.1", 8081);
-    defer client.destroy();
-    try client.connect();
+//     var client = try net.conn.Client.create(allocator, "127.0.0.1", 8081);
+//     defer client.destroy();
+//     try client.connect();
 
-    var lastTime = std.time.milliTimestamp();
-    var timeAccumulatorSeconds: f64 = 0;
-    var sendTimerAccumulator: f64 = 0;
-    const ticksPerSecond: f64 = 1.0;
-    const tickPerSecondTime: f64 = 1.0/ticksPerSecond;
-    std.log.debug("Started", .{});
+//     var lastTime = std.time.milliTimestamp();
+//     var timeAccumulatorSeconds: f64 = 0;
+//     var sendTimerAccumulator: f64 = 0;
+//     const ticksPerSecond: f64 = 1.0;
+//     const tickPerSecondTime: f64 = 1.0/ticksPerSecond;
+//     std.log.debug("Started", .{});
 
-    while(true) {
-        var currentTime = std.time.milliTimestamp();
-        var deltaTime: f64 = @intToFloat(f64, currentTime - lastTime) / 1000.0;  
-        lastTime = currentTime;
+//     while(true) {
+//         var currentTime = std.time.milliTimestamp();
+//         var deltaTime: f64 = @intToFloat(f64, currentTime - lastTime) / 1000.0;  
+//         lastTime = currentTime;
 
-        timeAccumulatorSeconds += deltaTime;
-        sendTimerAccumulator += deltaTime;
+//         timeAccumulatorSeconds += deltaTime;
+//         sendTimerAccumulator += deltaTime;
 
-        if(timeAccumulatorSeconds >= tickPerSecondTime) {
-            timeAccumulatorSeconds = 0;
-            std.log.debug("tick server", .{});
-            try server.tick();
-            std.log.debug("tick tick", .{});
-            try client.tick();
+//         if(timeAccumulatorSeconds >= tickPerSecondTime) {
+//             timeAccumulatorSeconds = 0;
+//             std.log.debug("tick server", .{});
+//             try server.tick();
+//             std.log.debug("tick tick", .{});
+//             try client.tick();
 
-            if(sendTimerAccumulator >= 5) {
-                sendTimerAccumulator = 0;
-                std.log.debug("send packet", .{});
-            }
-        }
-    }
-}
+//             if(sendTimerAccumulator >= 5) {
+//                 sendTimerAccumulator = 0;
+//                 std.log.debug("send packet", .{});
+//             }
+//         }
+//     }
+// }
 
 
 

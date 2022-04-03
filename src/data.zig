@@ -39,7 +39,8 @@ pub fn PacketInfo(comptime T: type) type {
         id: u16,
         value: T,
 
-        pub fn init(id: u16, value: T) Self {
+        pub fn init(value: T) !Self {
+            var id = try typeId(T);
             return Self{
                 .id = id,
                 .value = value,
@@ -53,7 +54,8 @@ pub fn PacketInfo(comptime T: type) type {
         }
 
         //needs to provide ad and serializes only value from stream (fetch id first), does not support pointers/slices etc,.. which require an alloce (ToDo:)
-        pub fn deserialize(id: u16, stream: anytype) !Self {
+        pub fn deserialize(stream: anytype) !Self {
+            var id = try typeId(T);
             var value = try s2s.deserialize(stream, T);
             return Self {
                 .id = id,
