@@ -20,10 +20,6 @@ pub fn main() !void {
     //try idPlayground();
 }
 
-pub fn idPlayground() !void {
-    net.data.registerTypes(.{T1, T2, T3});
-}
-
 pub fn packetPlayground() !void {
     // var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     // var allocator = gpa.allocator();
@@ -121,14 +117,8 @@ pub fn netPlayground() !void {
     try net.init();
     defer net.deinit();
 
-   
-    // var cb = try net.data.TypePacketCallback(T1).init(t1PacketCallback);
-    // try cb.invoke(T1{.age = 10});
-
     var server = try net.conn.Server.create(allocator, 8081);
     defer server.destroy();
-
-    // server.setPacketCallback(t1PacketCallback);
 
     var client = try net.conn.Client.create(allocator, "127.0.0.1", 8081);
     defer client.destroy();

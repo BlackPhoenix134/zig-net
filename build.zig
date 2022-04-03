@@ -8,14 +8,18 @@ const s2s_pkg = std.build.Pkg{
 const zenet_pkg = std.build.Pkg{
     .name = "zenet",
     .path = .{ .path = "libs/zenet/src/zenet.zig" },
-   
+};
+
+const events_pkg = std.build.Pkg{
+    .name = "events",
+    .path = .{ .path = "libs/events/src/events.zig" },
 };
 
 const zig_net_pkg = std.build.Pkg{
     .name = "net",
     .path = .{ .path = "src/net.zig" },
      .dependencies = &[_]std.build.Pkg {
-            s2s_pkg, zenet_pkg
+            s2s_pkg, zenet_pkg, events_pkg
         },
 };
 
@@ -38,6 +42,7 @@ pub fn build(b: *std.build.Builder) void {
     @import("libs/zenet/build.zig").link(b, main_exe);
     main_exe.addPackage(zenet_pkg);
     main_exe.addPackage(s2s_pkg);
+    main_exe.addPackage(events_pkg);
 
 
     // var exe = b.addExecutable("network-main", "src/main.zig");

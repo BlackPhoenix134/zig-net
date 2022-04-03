@@ -3,25 +3,6 @@ const zenet = @import("zenet");
 const s2s = @import("s2s");
 const utils = @import("utils.zig");
 
-
-// pub fn registerTypes(tuple: anytype) void {
-//     const fields = @typeInfo(@TypeOf(tuple)).Struct.fields;
-//     inline for (fields) |field| {
-//         comptime var value = @field(tuple, field.name);
-//         var id = typeIdHandle(value);
-//         if (id.* == std.math.maxInt(u32)) {
-//             id.* = id_counter;
-//             id_counter += 1;
-//             std.log.debug("registered {} with id {}", .{value, id.*});
-//         } 
-//     }
-//     lastUsedId = id_counter;
-// }
-
-pub fn typeId(comptime T: type) u32 {
-    return utils.hashStringFnv(u32, @typeName(T));
-}
-
 // pub fn typeId(comptime T: type) !u32 {
 //     var id = typeIdHandle(T);
 //     if (id.* == std.math.maxInt(u32)) {
@@ -60,7 +41,7 @@ pub fn typeId(comptime T: type) u32 {
 pub fn PacketInfo(comptime T: type) type {
     return struct {
         const Self = @This();
-        id: u32 = typeId(T),
+        id: u32 = utils.typeId(T),
         value: T,
 
         pub fn init(value: T) !Self {

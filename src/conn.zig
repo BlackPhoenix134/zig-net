@@ -41,7 +41,6 @@ pub const Server = struct {
         self.host.broadcast(0, packet);
     }
 
-
     pub fn tick(self: *Self) !void {
         var event: zenet.Event = std.mem.zeroes(zenet.Event);
         while (try self.host.service(&event, 0)) {
@@ -146,11 +145,15 @@ pub const Client = struct {
                         var buffer = data_pointer[0..packet.dataLength];
                         var stream = std.io.fixedBufferStream(buffer);
                         var id = try s2s.deserialize(stream.reader(), u32);
-                        std.log.debug("got packet with id {}", .{id});
+                        onPacketReceived(id, stream);
                     }
                 },
                 else => {},
             }
         }
+    }
+
+    fn onPacketReceived(id: u32, stream: anytype) !void {
+        std.log.debug("got packet with id {}", .{id});
     }
 };
