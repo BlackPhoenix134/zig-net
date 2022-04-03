@@ -12,9 +12,8 @@ pub fn registerTypes(tuple: anytype) void {
         if (id.* == std.math.maxInt(u16)) {
             id.* = idCounter;
             idCounter += 1;
-
             std.log.debug("registered {} with id {}", .{value, id.*});
-        }
+        } 
     }
 }
 
