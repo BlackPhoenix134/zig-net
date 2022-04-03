@@ -5,13 +5,13 @@ const s2s = @import("s2s");
 
 pub fn registerTypes(tuple: anytype) void {
     const fields = @typeInfo(@TypeOf(tuple)).Struct.fields;
-    comptime var idCounter = 0;
+    comptime var id_counter = 0;
     inline for (fields) |field| {
         comptime var value = @field(tuple, field.name);
         var id = typeIdHandle(value);
         if (id.* == std.math.maxInt(u16)) {
-            id.* = idCounter;
-            idCounter += 1;
+            id.* = id_counter;
+            id_counter += 1;
             std.log.debug("registered {} with id {}", .{value, id.*});
         } 
     }

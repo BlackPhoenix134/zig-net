@@ -3,11 +3,11 @@ const zenet = @import("zenet");
 const data = @import("data.zig");
 const s2s = @import("s2s");
 
-fn createZenetPacket(allocator: std.mem.Allocator, packetInfo: anytype) !*zenet.Packet {
+fn createZenetPacket(allocator: std.mem.Allocator, packet_info: anytype) !*zenet.Packet {
     // var buffer: [255]u8 = undefined; //ToDo: find a smart way to limit buffer length at runtime (calc size of packet info), because otherwise it sends the whole thing
     var buffer = std.ArrayList(u8).init(allocator);
     defer buffer.deinit(); //bytes are copied, clearing buffer is fine ToDo: reuse buffer
-    try packetInfo.serialize(buffer.writer());
+    try packet_info.serialize(buffer.writer());
     return try zenet.Packet.create(buffer.items, .{}); 
     // // var stream = std.io.fixedBufferStream(&buffer);
     // try packetInfo.serialize(stream.writer());
@@ -36,8 +36,8 @@ pub const Server = struct {
     }
 
     //broadcasts packetInfo to all peers connected
-    pub fn broadcast(self: *Self, packetInfo: anytype) !void {
-        var packet = try createZenetPacket(self.allocator, packetInfo); //ToDo: cleanup
+    pub fn broadcast(self: *Self, packet_info: anytype) !void {
+        var packet = try createZenetPacket(self.allocator, packet_info); //ToDo: cleanup
         self.host.broadcast(0, packet);
     }
 
@@ -110,14 +110,11 @@ pub const Client = struct {
 
     pub fn disconnect(self: *Self) !void {
         self.peer.disconnect(0);
-
         var event: zenet.Event = std.mem.zeroes(zenet.Event);
         while (try self.client.service(&event, 3000)) {
             switch (event.type) {
                 .receive => {
                     if (event.packet) |packet| {
-                       
-
                         packet.destroy();
                     }
                 },
@@ -148,8 +145,8 @@ pub const Client = struct {
                         // var buffer = try std.ArrayList(u8).initCapacity(self.allocator, packet.dataLength);
                         // defer buffer.deinit();
 
-                        var dataPointer: [*]u8 = packet.data.?;
-                        var buffer = dataPointer[0..packet.dataLength];
+                        var data_pointer: [*]u8 = packet.data.?;
+                        var buffer = data_pointer[0..packet.dataLength];
                         var stream = std.io.fixedBufferStream(buffer);
                         // var stream = std.io.fixedBufferStream(buffer);
                         var id = try s2s.deserialize(stream.reader(), u16);
