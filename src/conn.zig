@@ -3,12 +3,16 @@ const zenet = @import("zenet");
 const data = @import("data.zig");
 const s2s = @import("s2s");
 
-// fn createZenetPacket(data: []u8) !zenet.Packet {
-//     var data = std.ArrayList(u8).init(allocator);
-//     defer data.deinit(); //bytes are copied, clearing buffer is fine ToDo: reuse serialize buffer
-//     try s2s.serialize(data.wrietr(), net.data.PacketInfo(T), packet1);
-//     return try zenet.Packet.create(data.items, .{}); 
-// }
+fn createZenetPacket(allocator: std.mem.Allocator, packetInfo: anytype) !*zenet.Packet {
+    // var buffer: [255]u8 = undefined; //ToDo: find a smart way to limit buffer length at runtime (calc size of packet info), because otherwise it sends the whole thing
+    var buffer = std.ArrayList(u8).init(allocator);
+    defer buffer.deinit(); //bytes are copied, clearing buffer is fine ToDo: reuse buffer
+    try packetInfo.serialize(buffer.writer());
+    return try zenet.Packet.create(buffer.items, .{}); 
+    // // var stream = std.io.fixedBufferStream(&buffer);
+    // try packetInfo.serialize(stream.writer());
+    // return try zenet.Packet.create(&buffer, .{}); 
+}
 
 pub const Server = struct {
     const Self = @This();
@@ -32,11 +36,11 @@ pub const Server = struct {
     }
 
     //broadcasts packetInfo to all peers connected
-    // pub fn broadcast(self: *Self, packetInfo: anytype) !void {
-        
-    //     var packet = zenet.Packet.create(data: []u8, flags: PacketFlags)
-    //     self.host.broadcast(0, packet: *Packet)
-    // }
+    pub fn broadcast(self: *Self, packetInfo: anytype) !void {
+        var packet = try createZenetPacket(self.allocator, packetInfo); //ToDo: cleanup
+        self.host.broadcast(0, packet);
+    }
+
 
     pub fn tick(self: *Self) !void {
         var event: zenet.Event = std.mem.zeroes(zenet.Event);
@@ -112,6 +116,8 @@ pub const Client = struct {
             switch (event.type) {
                 .receive => {
                     if (event.packet) |packet| {
+                       
+
                         packet.destroy();
                     }
                 },
@@ -139,6 +145,28 @@ pub const Client = struct {
                             event.peer.?.address.port,
                             event.channelID,
                         });
+                        // var buffer = try std.ArrayList(u8).initCapacity(self.allocator, packet.dataLength);
+                        // defer buffer.deinit();
+
+                        var dataPointer: [*]u8 = packet.data.?;
+                        var buffer = dataPointer[0..packet.dataLength];
+                        var stream = std.io.fixedBufferStream(buffer);
+                        // var stream = std.io.fixedBufferStream(buffer);
+                        var id = try s2s.deserialize(stream.reader(), u16);
+                        std.log.debug("got packet with id {}", .{id});
+                        switch(id) {
+                            0 => {
+                                // var deserialized = try net.data.PacketInfo(T1).deserialize(stream.reader());
+                                // std.log.debug("{} \n {}", .{packet1, deserialized});
+                            },
+                            1 => {
+
+                            },
+                            2 => {
+                                
+                            },
+                            else => unreachable,
+                        }
                     }
                 },
                 else => {},

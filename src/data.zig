@@ -2,6 +2,7 @@ const std = @import("std");
 const zenet = @import("zenet");
 const s2s = @import("s2s");
 
+
 pub fn registerTypes(tuple: anytype) void {
     const fields = @typeInfo(@TypeOf(tuple)).Struct.fields;
     comptime var idCounter = 0;
@@ -48,7 +49,7 @@ pub fn PacketInfo(comptime T: type) type {
         }
 
         //serializes id + value, not the struct itself
-        pub fn serialize(self: *Self, stream: anytype) !void {
+        pub fn serialize(self: *const Self, stream: anytype) !void {
             try s2s.serialize(stream, u16, self.id);
             try s2s.serialize(stream, T, self.value);
         }

@@ -6,8 +6,8 @@ const zenet = @import("zenet");
 
 pub fn main() !void {
     //try s2sPlayground();
-    //try netPlayground();
-    try packetPlayground();
+    try netPlayground();
+    // try packetPlayground();
     //try idPlayground();
 }
 
@@ -51,7 +51,7 @@ pub fn packetPlayground() !void {
     // std.log.debug("{} {}", .{data.items.len, packet.dataLength});
 }
 
-// pub fn s2sPlayground() !void {
+pub fn s2sPlayground() !void {
 //     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 //     var allocator = gpa.allocator();
 
@@ -95,54 +95,64 @@ pub fn packetPlayground() !void {
 //     std.log.debug("after deserialize", .{});
 //     std.log.debug("{}", .{val1});
 //     std.log.debug("{}", .{deserialized});
-// }
+}
 
-// pub fn netPlayground() !void {
-//     std.log.debug("test", .{});
-//     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-//     const allocator = gpa.allocator();
-//     defer _ = gpa.deinit();
+pub fn netPlayground() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+    defer _ = gpa.deinit();
     
-//     try net.init();
-//     defer net.deinit();
-//     net.data.registerTypes(.{T1, T2, T3});
+    try net.init();
+    defer net.deinit();
 
-//     var server = try net.conn.Server.create(allocator, 8081);
-//     defer server.destroy();
+    const T1 = struct {
+        age: u32
+    };
 
-//     var client = try net.conn.Client.create(allocator, "127.0.0.1", 8081);
-//     defer client.destroy();
-//     try client.connect();
+    const T2 = struct {
+        weight: u64
+    };
 
-//     var lastTime = std.time.milliTimestamp();
-//     var timeAccumulatorSeconds: f64 = 0;
-//     var sendTimerAccumulator: f64 = 0;
-//     const ticksPerSecond: f64 = 1.0;
-//     const tickPerSecondTime: f64 = 1.0/ticksPerSecond;
-//     std.log.debug("Started", .{});
+    net.data.registerTypes(.{T1, T2});
 
-//     while(true) {
-//         var currentTime = std.time.milliTimestamp();
-//         var deltaTime: f64 = @intToFloat(f64, currentTime - lastTime) / 1000.0;  
-//         lastTime = currentTime;
+    var server = try net.conn.Server.create(allocator, 8081);
+    defer server.destroy();
 
-//         timeAccumulatorSeconds += deltaTime;
-//         sendTimerAccumulator += deltaTime;
+    var client = try net.conn.Client.create(allocator, "127.0.0.1", 8081);
+    defer client.destroy();
+    try client.connect();
 
-//         if(timeAccumulatorSeconds >= tickPerSecondTime) {
-//             timeAccumulatorSeconds = 0;
-//             std.log.debug("tick server", .{});
-//             try server.tick();
-//             std.log.debug("tick tick", .{});
-//             try client.tick();
+    var lastTime = std.time.milliTimestamp();
+    var timeAccumulatorSeconds: f64 = 0;
+    var sendTimerAccumulator: f64 = 0;
+    const ticksPerSecond: f64 = 1.0;
+    const tickPerSecondTime: f64 = 1.0/ticksPerSecond;
+    std.log.debug("Started", .{});
 
-//             if(sendTimerAccumulator >= 5) {
-//                 sendTimerAccumulator = 0;
-//                 std.log.debug("send packet", .{});
-//             }
-//         }
-//     }
-// }
+    while(true) {
+        var currentTime = std.time.milliTimestamp();
+        var deltaTime: f64 = @intToFloat(f64, currentTime - lastTime) / 1000.0;  
+        lastTime = currentTime;
+
+        timeAccumulatorSeconds += deltaTime;
+        sendTimerAccumulator += deltaTime;
+
+        if(timeAccumulatorSeconds >= tickPerSecondTime) {
+            timeAccumulatorSeconds = 0;
+            std.log.debug("tick server", .{});
+            try server.tick();
+            std.log.debug("tick tick", .{});
+            try client.tick();
+
+            if(sendTimerAccumulator >= 2) {
+                sendTimerAccumulator = 0;
+                var packetInfo1 = try net.data.PacketInfo(T1).init(T1{.age = 10});
+                try server.broadcast(packetInfo1);
+                std.log.debug("send packet", .{});
+            }
+        }
+    }
+}
 
 
 
