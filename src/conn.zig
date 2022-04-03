@@ -142,28 +142,11 @@ pub const Client = struct {
                             event.peer.?.address.port,
                             event.channelID,
                         });
-                        // var buffer = try std.ArrayList(u8).initCapacity(self.allocator, packet.dataLength);
-                        // defer buffer.deinit();
-
                         var data_pointer: [*]u8 = packet.data.?;
                         var buffer = data_pointer[0..packet.dataLength];
                         var stream = std.io.fixedBufferStream(buffer);
-                        // var stream = std.io.fixedBufferStream(buffer);
-                        var id = try s2s.deserialize(stream.reader(), u16);
+                        var id = try s2s.deserialize(stream.reader(), u32);
                         std.log.debug("got packet with id {}", .{id});
-                        switch(id) {
-                            0 => {
-                                // var deserialized = try net.data.PacketInfo(T1).deserialize(stream.reader());
-                                // std.log.debug("{} \n {}", .{packet1, deserialized});
-                            },
-                            1 => {
-
-                            },
-                            2 => {
-                                
-                            },
-                            else => unreachable,
-                        }
                     }
                 },
                 else => {},

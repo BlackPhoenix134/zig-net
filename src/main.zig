@@ -3,6 +3,15 @@ const net = @import("net");
 const s2s = @import("s2s");
 const zenet = @import("zenet");
 
+const T1 = struct {
+    age: u32
+};
+
+const T2 = struct {
+    weight: u64
+};
+
+const T3 = struct{};
 
 pub fn main() !void {
     //try s2sPlayground();
@@ -12,39 +21,36 @@ pub fn main() !void {
 }
 
 pub fn idPlayground() !void {
-    const T1 = struct {};
-    const T2 = struct {};
-    const T3 = struct {};
     net.data.registerTypes(.{T1, T2, T3});
 }
 
 pub fn packetPlayground() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    var allocator = gpa.allocator();
-    _ = allocator;
+    // var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    // var allocator = gpa.allocator();
+    // _ = allocator;
 
-    const T1 = struct {};
-    const T2 = struct {
-        age: u16,
-        weight: u16,
-    };
-    const T3 = struct {};
+    // const T1 = struct {};
+    // const T2 = struct {
+    //     age: u16,
+    //     weight: u16,
+    // };
+    // const T3 = struct {};
 
-    var val1 = T2{.age = 10, .weight = 20};
-    net.data.registerTypes(.{T1, T2, T3});
+    // var val1 = T2{.age = 10, .weight = 20};
+    // net.data.registerTypes(.{T1, T2, T3});
 
-    var packet1 = try net.data.PacketInfo(T2).init(val1);
-    var data = std.ArrayList(u8).init(allocator);
-    defer data.deinit();
-    try packet1.serialize(data.writer());
+    // var packet1 = try net.data.PacketInfo(T2).init(val1);
+    // var data = std.ArrayList(u8).init(allocator);
+    // defer data.deinit();
+    // try packet1.serialize(data.writer());
 
    
-    var stream = std.io.fixedBufferStream(data.items);
-    var id = try s2s.deserialize(stream.reader(), u16);
-    if(id == 1) {
-        var deserialized = try net.data.PacketInfo(T2).deserialize(stream.reader());
-        std.log.debug("{} \n {}", .{packet1, deserialized});
-    }
+    // var stream = std.io.fixedBufferStream(data.items);
+    // var id = try s2s.deserialize(stream.reader(), u16);
+    // if(id == 1) {
+    //     var deserialized = try net.data.PacketInfo(T2).deserialize(stream.reader());
+    //     std.log.debug("{} \n {}", .{packet1, deserialized});
+    // }
 
     // var packet = try zenet.Packet.create(data.items, .{});
     // defer packet.destroy();
@@ -97,6 +103,16 @@ pub fn s2sPlayground() !void {
 //     std.log.debug("{}", .{deserialized});
 }
 
+
+fn t1PacketCallback(value: T1) !void {
+    std.log.debug("T1 callback {}", .{value});
+}
+
+
+fn t2PacketCallback(value: T1) !void {
+    std.log.debug("T2 callback {}", .{value});
+}
+
 pub fn netPlayground() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
@@ -105,19 +121,14 @@ pub fn netPlayground() !void {
     try net.init();
     defer net.deinit();
 
-    const T1 = struct {
-        age: u32
-    };
-
-    const T2 = struct {
-        weight: u64
-    };
-
-    net.data.registerTypes(.{T1});
-    net.data.registerTypes(.{T2});
+   
+    // var cb = try net.data.TypePacketCallback(T1).init(t1PacketCallback);
+    // try cb.invoke(T1{.age = 10});
 
     var server = try net.conn.Server.create(allocator, 8081);
     defer server.destroy();
+
+    // server.setPacketCallback(t1PacketCallback);
 
     var client = try net.conn.Client.create(allocator, "127.0.0.1", 8081);
     defer client.destroy();
