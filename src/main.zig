@@ -5,9 +5,17 @@ const zenet = @import("zenet");
 
 
 pub fn main() !void {
-  //try s2sPlayground();
-  //try netPlayground();
-  try packetPlayground();
+    //try s2sPlayground();
+    //try netPlayground();
+    //try packetPlayground();
+    try idPlayground();
+}
+
+pub fn idPlayground() !void {
+    const T1 = struct {};
+    const T2 = struct {};
+    const T3 = struct {};
+    net.data.registerTypes(.{T1, T2, T3});
 }
 
 pub fn packetPlayground() !void {
@@ -27,14 +35,17 @@ pub fn packetPlayground() !void {
     defer data.deinit();
     try packet1.serialize(data.writer());
 
+   
+    var stream = std.io.fixedBufferStream(data.items);
+    var id = try s2s.deserialize(stream.reader(), u16);
+    if(id == 0) {
+        var deserialized = try net.data.PacketInfo(Struct1).deserialize(id, stream.reader());
+        std.log.debug("{} \n {}", .{packet1, deserialized});
+    }
+
     // var packet = try zenet.Packet.create(data.items, .{});
     // defer packet.destroy();
     // std.log.debug("{} {}", .{data.items.len, packet.dataLength});
-
-    var stream = std.io.fixedBufferStream(data.items);
-    var deserialized = try net.data.PacketInfo(Struct1).deserialize(stream);
-
-    std.log.debug("{} \n {}", .{packet1, deserialized});
 }
 
 pub fn s2sPlayground() !void {

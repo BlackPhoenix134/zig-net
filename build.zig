@@ -1,20 +1,24 @@
 const std = @import("std");
 
+const s2s_pkg = std.build.Pkg{
+    .name = "s2s",
+    .path = .{ .path = "libs/s2s/src/s2s.zig" },
+};
 
 const zenet_pkg = std.build.Pkg{
-        .name = "zenet",
-        .path = .{ .path = "libs/zenet/src/zenet.zig" },
+    .name = "zenet",
+    .path = .{ .path = "libs/zenet/src/zenet.zig" },
+   
 };
 
 const zig_net_pkg = std.build.Pkg{
     .name = "net",
     .path = .{ .path = "src/net.zig" },
+     .dependencies = &[_]std.build.Pkg {
+            s2s_pkg, zenet_pkg
+        },
 };
 
-const s2s_pkg = std.build.Pkg{
-    .name = "s2s",
-    .path = .{ .path = "libs/s2s/src/s2s.zig" },
-};
 
 pub fn build(b: *std.build.Builder) void {
     const target = b.standardTargetOptions(.{});
@@ -31,10 +35,8 @@ pub fn build(b: *std.build.Builder) void {
     main_run_step.dependOn(&main_run.step);
 
     main_exe.addPackage(zig_net_pkg);
-
     @import("libs/zenet/build.zig").link(b, main_exe);
     main_exe.addPackage(zenet_pkg);
-    
     main_exe.addPackage(s2s_pkg);
 
 
