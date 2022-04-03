@@ -113,7 +113,8 @@ pub fn netPlayground() !void {
         weight: u64
     };
 
-    net.data.registerTypes(.{T1, T2});
+    net.data.registerTypes(.{T1});
+    net.data.registerTypes(.{T2});
 
     var server = try net.conn.Server.create(allocator, 8081);
     defer server.destroy();

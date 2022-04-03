@@ -2,10 +2,11 @@ const std = @import("std");
 const zenet = @import("zenet");
 const s2s = @import("s2s");
 
+var lastUsedId: u16 = 0;
 
 pub fn registerTypes(tuple: anytype) void {
     const fields = @typeInfo(@TypeOf(tuple)).Struct.fields;
-    comptime var id_counter = 0;
+     var id_counter = lastUsedId;
     inline for (fields) |field| {
         comptime var value = @field(tuple, field.name);
         var id = typeIdHandle(value);
@@ -15,6 +16,8 @@ pub fn registerTypes(tuple: anytype) void {
             std.log.debug("registered {} with id {}", .{value, id.*});
         } 
     }
+
+    lastUsedId = id_counter;
 }
 
 pub fn typeId(comptime T: type) !u16 {
