@@ -3,6 +3,7 @@ const net = @import("net");
 const s2s = @import("s2s");
 const zenet = @import("zenet");
 const ev = @import("events");
+const utils = @import("utils");
 
 const T1 = struct {
     age: u32
@@ -110,6 +111,21 @@ fn t2PacketCallback(value: T1) !void {
     std.log.debug("T2 callback {}", .{value});
 }
 
+pub fn packetReceived(value: net.data.PacketReceivedData) void {
+    std.log.debug("GOT SHIT {}", .{value.container.id});
+    switch(value.container.id) {
+        utils.typeId(T1) => {
+            var info = net.data.PacketInfo(T1).deserializeRaw(value.container);
+            std.log.debug("T1: {}", info);
+        },
+        utils.typeId(T2) => {
+            var info = net.data.PacketInfo(T1).deserializeRaw(value.container);
+            std.log.debug("T2: {}", info);
+        },
+        else => unreachable,
+    }
+}
+
 pub fn netPlayground() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
@@ -124,6 +140,8 @@ pub fn netPlayground() !void {
     var client = try net.conn.Client.create(allocator, "127.0.0.1", 8081);
     defer client.destroy();
     try client.connect();
+
+    client.packet_received_signal.sink().connect(packetReceived);
 
     var lastTime = std.time.milliTimestamp();
     var timeAccumulatorSeconds: f64 = 0;

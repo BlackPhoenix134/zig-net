@@ -22,6 +22,7 @@ pub const Server = struct {
     host: *zenet.Host,
     client_connected_signal: *ev.Signal(u32),
     client_disconnected_signal: *ev.Signal(u32),
+    packet_received_signal: *ev.Signal(data.PacketReceivedData),
 
     pub fn create(allocator: std.mem.Allocator, port: u16) !*Self {
         var ptr = try allocator.create(Self);
@@ -34,11 +35,14 @@ pub const Server = struct {
             .address = address, 
             .host = host,
             .client_connected_signal = ev.Signal(u32).create(allocator),
-            .client_disconnected_signal = ev.Signal(u32).create(allocator)};
+            .client_disconnected_signal = ev.Signal(u32).create(allocator),
+            .packet_received_signal = ev.Signal(data.PacketReceivedData).create(allocator),
+            };
         return ptr;
     }
 
     pub fn destroy(self: *Self) void {
+        self.packet_received_signal.deinit();
         self.client_disconnected_signal.deinit();
         self.client_connected_signal.deinit();
         self.host.destroy();
@@ -70,6 +74,15 @@ pub const Server = struct {
                             "A packet of length {d} was received from {s} on channel {d}.",
                             .{ packet.dataLength, event.peer.?.data, event.channelID },
                         );
+
+                        var data_pointer: [*]u8 = packet.data.?;
+                        var length = packet.dataLength;
+                        var buffer = data_pointer[0..length];
+                        var stream = std.io.fixedBufferStream(buffer);
+                        var id = try s2s.deserialize(stream.reader(), u32);
+                        var container = data.PacketInfoContainer { .id = id, .data = data_pointer, .length = length };
+                        self.packet_received_signal.publish(data.PacketReceivedData.init(container));
+
                         packet.destroy();
                     }
                 },
@@ -95,6 +108,7 @@ pub const Client = struct {
 
     connected_signal: *ev.Signal(u32),
     disconnected_signal: *ev.Signal(u32),
+    packet_received_signal: *ev.Signal(data.PacketReceivedData),
 
     pub fn create(allocator: std.mem.Allocator, host: [*:0]const u8, port: u16) !*Self {
         var ptr = try allocator.create(Self);
@@ -107,11 +121,14 @@ pub const Client = struct {
             .address = address,
             .client = client,
             .connected_signal = ev.Signal(u32).create(allocator),
-            .disconnected_signal = ev.Signal(u32).create(allocator)};
+            .disconnected_signal = ev.Signal(u32).create(allocator),
+            .packet_received_signal = ev.Signal(data.PacketReceivedData).create(allocator),
+            };
         return ptr;
     }
 
     pub fn destroy(self: *Self) void {
+        self.packet_received_signal.deinit();
         self.disconnected_signal.deinit();
         self.connected_signal.deinit();
         self.client.destroy();
@@ -168,20 +185,19 @@ pub const Client = struct {
                             event.peer.?.address.port,
                             event.channelID,
                         });
+
                         var data_pointer: [*]u8 = packet.data.?;
-                        var buffer = data_pointer[0..packet.dataLength];
+                        var length = packet.dataLength;
+                        var buffer = data_pointer[0..length];
                         var stream = std.io.fixedBufferStream(buffer);
                         var id = try s2s.deserialize(stream.reader(), u32);
-                        try onPacketReceived(id, stream);
+
+                        var container = data.PacketInfoContainer { .id = id, .data = data_pointer, .length = length };
+                        self.packet_received_signal.publish(data.PacketReceivedData.init(container));
                     }
                 },
                 else => {},
             }
         }
-    }
-
-    fn onPacketReceived(id: u32, stream: anytype) !void {
-        _ = stream;
-        std.log.debug("got packet with id {}", .{id});
     }
 };
