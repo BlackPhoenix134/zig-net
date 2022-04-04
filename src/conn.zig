@@ -131,8 +131,7 @@ pub const Server = struct {
            try handler(&self.packet_received_dispatcher, buffer[stream.pos..buffer.len]);
         }   
         else {
-            std.log.err("No handler registered for packet id {}", .{id});
-            @panic("No handler registered for packet, ToDo: auto register here maybe");
+            std.log.info("No handler registered for packet id {}", .{id});
         }
     }
 };
@@ -258,8 +257,7 @@ pub const Client = struct {
            try handler(&self.packet_received_dispatcher, buffer[stream.pos..buffer.len]);
         }   
         else {
-            std.log.err("No handler registered for packet id {}", .{id});
-            @panic("No handler registered for packet, ToDo: auto register here maybe");
+            std.log.info("No handler registered for packet id {}", .{id});
         }
     }
 };
