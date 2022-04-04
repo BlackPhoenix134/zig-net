@@ -3,16 +3,33 @@ const zenet = @import("zenet");
 const data = @import("data.zig");
 const s2s = @import("s2s");
 const ev = @import("events");
+const utils = @import("utils.zig");
 
 fn createZenetPacket(allocator: std.mem.Allocator, packet_info: anytype) !*zenet.Packet {
     // var buffer: [255]u8 = undefined; //ToDo: find a smart way to limit buffer length at runtime (calc size of packet info), because otherwise it sends the whole thing
     var buffer = std.ArrayList(u8).init(allocator);
     defer buffer.deinit(); //bytes are copied, clearing buffer is fine ToDo: reuse buffer
     try packet_info.serialize(buffer.writer());
-    return try zenet.Packet.create(buffer.items, .{}); 
+    return try zenet.Packet.create(buffer.items, .{});
     // // var stream = std.io.fixedBufferStream(&buffer);
     // try packetInfo.serialize(stream.writer());
-    // return try zenet.Packet.create(&buffer, .{}); 
+    // return try zenet.Packet.create(&buffer, .{});
+}
+
+pub fn fooker(comptime T: type) fn (*ev.Dispatcher, []u8) anyerror!void {
+     return (struct {
+        pub fn shit(dispatcher: *ev.Dispatcher, buffer: []u8) !void {
+             std.log.debug("I know the type... {s}, i got {} bytes and can call shit now you motherfucker", .{ @typeName(T), buffer.len });
+             std.log.debug("des bytes {any}", .{buffer});
+            var stream = std.io.fixedBufferStream(buffer);
+            // var id = try s2s.deserialize(stream.reader(), u32); 
+            // _ = id;
+            var value = try s2s.deserialize(stream.reader(), T); 
+            dispatcher.trigger(T, value);
+            // dispatcher.trigger(T, );
+            // std.log.debug("I know the type... {s}, thing: {}\n", .{ @typeName(T), thing });
+        }
+     }.shit);
 }
 
 pub const Server = struct {
@@ -22,7 +39,6 @@ pub const Server = struct {
     host: *zenet.Host,
     client_connected_signal: *ev.Signal(u32),
     client_disconnected_signal: *ev.Signal(u32),
-    packet_received_signal: *ev.Signal(data.PacketReceivedData),
 
     pub fn create(allocator: std.mem.Allocator, port: u16) !*Self {
         var ptr = try allocator.create(Self);
@@ -30,19 +46,17 @@ pub const Server = struct {
         address.host = zenet.HOST_ANY;
         address.port = port;
         var host = try zenet.Host.create(address, 1, 1, 0, 0);
-        ptr.* = .{ 
-            .allocator = allocator, 
-            .address = address, 
+        ptr.* = .{
+            .allocator = allocator,
+            .address = address,
             .host = host,
             .client_connected_signal = ev.Signal(u32).create(allocator),
             .client_disconnected_signal = ev.Signal(u32).create(allocator),
-            .packet_received_signal = ev.Signal(data.PacketReceivedData).create(allocator),
             };
         return ptr;
     }
 
     pub fn destroy(self: *Self) void {
-        self.packet_received_signal.deinit();
         self.client_disconnected_signal.deinit();
         self.client_connected_signal.deinit();
         self.host.destroy();
@@ -80,8 +94,9 @@ pub const Server = struct {
                         var buffer = data_pointer[0..length];
                         var stream = std.io.fixedBufferStream(buffer);
                         var id = try s2s.deserialize(stream.reader(), u32);
-                        var container = data.PacketInfoContainer { .id = id, .data = data_pointer, .length = length };
-                        self.packet_received_signal.publish(data.PacketReceivedData.init(container));
+                         var container = data.PacketInfoContainer { .id = id, .data = data_pointer, .length = length };
+                         _ = container;
+                        // self.packet_received_signal.publish(data.PacketReceivedData.init(container));
 
                         packet.destroy();
                     }
@@ -108,7 +123,9 @@ pub const Client = struct {
 
     connected_signal: *ev.Signal(u32),
     disconnected_signal: *ev.Signal(u32),
-    packet_received_signal: *ev.Signal(data.PacketReceivedData),
+    packet_received_dispatcher: ev.Dispatcher,
+
+    packet_deserializer: std.AutoHashMap(u32, (fn (*ev.Dispatcher, []u8) anyerror!void)),
 
     pub fn create(allocator: std.mem.Allocator, host: [*:0]const u8, port: u16) !*Self {
         var ptr = try allocator.create(Self);
@@ -116,19 +133,21 @@ pub const Client = struct {
         try address.set_host(host);
         var client = try zenet.Host.create(null, 1, 1, 0, 0);
         address.port = port;
-        ptr.* = .{ 
+        ptr.* = .{
             .allocator = allocator,
             .address = address,
             .client = client,
             .connected_signal = ev.Signal(u32).create(allocator),
             .disconnected_signal = ev.Signal(u32).create(allocator),
-            .packet_received_signal = ev.Signal(data.PacketReceivedData).create(allocator),
+            .packet_received_dispatcher = ev.Dispatcher.init(allocator),
+            .packet_deserializer = std.AutoHashMap(u32, (fn (*ev.Dispatcher, []u8) anyerror!void)).init(allocator),
             };
         return ptr;
     }
 
     pub fn destroy(self: *Self) void {
-        self.packet_received_signal.deinit();
+        self.packet_deserializer.deinit();
+        self.packet_received_dispatcher.deinit();
         self.disconnected_signal.deinit();
         self.connected_signal.deinit();
         self.client.destroy();
@@ -189,15 +208,43 @@ pub const Client = struct {
                         var data_pointer: [*]u8 = packet.data.?;
                         var length = packet.dataLength;
                         var buffer = data_pointer[0..length];
-                        var stream = std.io.fixedBufferStream(buffer);
-                        var id = try s2s.deserialize(stream.reader(), u32);
+                        try self.onPacketReceived(buffer);
 
-                        var container = data.PacketInfoContainer { .id = id, .data = data_pointer, .length = length };
-                        self.packet_received_signal.publish(data.PacketReceivedData.init(container));
+                        // var stream = std.io.fixedBufferStream(buffer);
+                        // var id = try s2s.deserialize(stream.reader(), u32);
+                        //ToDo: info from, to, id, etc,..
+
+                        // var container = data.PacketInfoContainer { .id = id, .data = data_pointer, .length = length };
+                        // self.packet_received_signal.publish(data.PacketReceivedData.init(container));
                     }
                 },
                 else => {},
             }
+        }
+    }
+
+    pub fn registerPacketHandler(self: *Self, comptime T: type, handler: fn(T) void) !void {
+        self.packet_received_dispatcher.sink(T).connect(handler);
+        const typeId = utils.typeId(T);
+        if(!self.packet_deserializer.contains(typeId)) {
+            var deserialize_func = fooker(T);
+            try self.packet_deserializer.put(typeId, deserialize_func);
+            std.log.debug("registerd handler for {}", .{T});
+        }
+    }
+
+    fn onPacketReceived(self: *Self, buffer: []u8) !void {
+        var stream = std.io.fixedBufferStream(buffer);
+        var id = try s2s.deserialize(stream.reader(), u32);
+        var handler_maybe = self.packet_deserializer.get(id);
+
+        if(handler_maybe) |handler| {
+            // try handler(&self.packet_received_dispatcher, buffer[@sizeOf(u32)..buffer.len]);
+           try handler(&self.packet_received_dispatcher, buffer[stream.pos..buffer.len]);
+        }   
+        else {
+            std.log.err("No handler registered for packet id {}", .{id});
+            @panic("No handler registered for packet, ToDo: auto register here maybe");
         }
     }
 };

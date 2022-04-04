@@ -17,8 +17,8 @@ const T3 = struct{};
 
 pub fn main() !void {
     //try s2sPlayground();
-    // try netPlayground();
-    try fookerPlayground();
+    try netPlayground();
+    // try fookerPlayground();
     // try packetPlayground();
     //try idPlayground();
 }
@@ -127,24 +127,54 @@ pub fn packetReceived(value: net.data.PacketReceivedData) void {
     }
 }
 
-pub const WhateverTFItIs = struct {};
+pub const Callbacks = struct {
+    dispatcher: ev.Dispatcher
+};
 
-pub fn fooker(comptime T: type) fn (WhateverTFItIs) void {
+pub fn fooker(comptime T: type) fn (*Callbacks) void {
      return (struct {
-        pub fn shit(thing: WhateverTFItIs) void {
-            std.log.debug("I know the type... {s}, thing: {}\n", .{ @typeName(T), thing });
+        pub fn shit(thing: *Callbacks) void {
+            thing.dispatcher.trigger(T, 10);
+            // std.log.debug("I know the type... {s}, thing: {}\n", .{ @typeName(T), thing });
         }
      }.shit);
 }
 
-pub fn fookerPlayground() !void {
-    var func1: fn(WhateverTFItIs) void = fooker(u32);
-    func1(WhateverTFItIs{});
-    var func2: fn(WhateverTFItIs) void = fooker(u64);
-    func2(WhateverTFItIs{});
+pub fn printU32(value: u32) void {
+    std.log.debug("printU32 {}", .{value});
 }
 
+pub fn printU8(value: u8) void {
+    std.log.debug("printI64 {}", .{value});
+}
 
+pub fn fookerPlayground() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+    defer _ = gpa.deinit();
+    
+    var callbacks = Callbacks{
+        .dispatcher = ev.Dispatcher.init(allocator)
+    };
+    defer callbacks.dispatcher.deinit();
+
+    callbacks.dispatcher.sink(u32).connect(printU32);
+    callbacks.dispatcher.sink(u8).connect(printU8);
+
+    var func1 = fooker(u32);
+    var func2 = fooker(u8);
+
+    magic(func1, &callbacks);
+    magic(func2, &callbacks);
+}
+
+pub fn magic(fun: fn(*Callbacks) void, callbacks: *Callbacks) void {
+    fun(callbacks);
+}
+
+pub fn clientT1Handler(value: T1) void {
+    std.log.debug("FUCKING DID IT {}", .{value});
+}
 
 pub fn netPlayground() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -161,8 +191,8 @@ pub fn netPlayground() !void {
     defer client.destroy();
     try client.connect();
 
-    client.packet_received_signal.sink().connect(packetReceived);
-
+    try client.registerPacketHandler(T1, clientT1Handler);
+    
     var lastTime = std.time.milliTimestamp();
     var timeAccumulatorSeconds: f64 = 0;
     var sendTimerAccumulator: f64 = 0;
