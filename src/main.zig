@@ -172,8 +172,14 @@ pub fn magic(fun: fn(*Callbacks) void, callbacks: *Callbacks) void {
     fun(callbacks);
 }
 
+
+pub fn serverT1Handler(value: T1) void {
+    std.log.debug("Got T1 Server {}", .{value});
+}
+
+
 pub fn clientT1Handler(value: T1) void {
-    std.log.debug("FUCKING DID IT {}", .{value});
+    std.log.debug("Got T1 Client {}", .{value});
 }
 
 pub fn netPlayground() !void {
@@ -191,11 +197,13 @@ pub fn netPlayground() !void {
     defer client.destroy();
     try client.connect();
 
+    try server.registerPacketHandler(T1, serverT1Handler);
     try client.registerPacketHandler(T1, clientT1Handler);
     
     var lastTime = std.time.milliTimestamp();
     var timeAccumulatorSeconds: f64 = 0;
-    var sendTimerAccumulator: f64 = 0;
+    var sendTimerAccumulator1: f64 = 0;
+    var sendTimerAccumulator2: f64 = 0;
     const ticksPerSecond: f64 = 1.0;
     const tickPerSecondTime: f64 = 1.0/ticksPerSecond;
     std.log.debug("Started", .{});
@@ -206,7 +214,8 @@ pub fn netPlayground() !void {
         lastTime = currentTime;
 
         timeAccumulatorSeconds += deltaTime;
-        sendTimerAccumulator += deltaTime;
+        sendTimerAccumulator1 += deltaTime;
+        sendTimerAccumulator2 += deltaTime;
 
         if(timeAccumulatorSeconds >= tickPerSecondTime) {
             timeAccumulatorSeconds = 0;
@@ -215,13 +224,24 @@ pub fn netPlayground() !void {
             std.log.debug("tick tick", .{});
             try client.tick();
 
-            if(sendTimerAccumulator >= 2) {
-                sendTimerAccumulator = 0;
-                var packetInfo1 = try net.data.PacketInfo(T1).init(T1{.age = 10});
-                try server.broadcast(packetInfo1);
-                std.log.debug("send packet", .{});
+          
+
+          
+        //   if(sendTimerAccumulator1 >= 2) {
+        //         sendTimerAccumulator1 = 0;
+        //         var packetInfo1 = try net.data.PacketInfo(T1).init(T1{.age = 10});
+        //         try server.broadcast(packetInfo1);
+        //         std.log.debug("send packet", .{});
+        //     }
+
+            if(sendTimerAccumulator2 >= 4) {
+                sendTimerAccumulator2 = 0;
+                var packetInfo1 = try net.data.PacketInfo(T1).init(T1{.age = 20});
+                try client.send(packetInfo1);
+                std.log.debug("send packet to server", .{});
             }
         }
+
     }
 }
 
