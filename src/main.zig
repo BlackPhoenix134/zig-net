@@ -17,7 +17,8 @@ const T3 = struct{};
 
 pub fn main() !void {
     //try s2sPlayground();
-    try netPlayground();
+    // try netPlayground();
+    try fookerPlayground();
     // try packetPlayground();
     //try idPlayground();
 }
@@ -125,6 +126,25 @@ pub fn packetReceived(value: net.data.PacketReceivedData) void {
         else => unreachable,
     }
 }
+
+pub const WhateverTFItIs = struct {};
+
+pub fn fooker(comptime T: type) fn (WhateverTFItIs) void {
+     return (struct {
+        pub fn shit(thing: WhateverTFItIs) void {
+            std.log.debug("I know the type... {s}, thing: {}\n", .{ @typeName(T), thing });
+        }
+     }.shit);
+}
+
+pub fn fookerPlayground() !void {
+    var func1: fn(WhateverTFItIs) void = fooker(u32);
+    func1(WhateverTFItIs{});
+    var func2: fn(WhateverTFItIs) void = fooker(u64);
+    func2(WhateverTFItIs{});
+}
+
+
 
 pub fn netPlayground() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
