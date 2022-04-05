@@ -1,0 +1,4 @@
+ToDo:
+send u32 id without s2s (header size)
+read u32 id without s2s (symetry to top)
+remove code duplication
