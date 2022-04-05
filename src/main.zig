@@ -17,7 +17,8 @@ const T3 = struct{};
 
 pub fn main() !void {
     //try s2sPlayground();
-    try netPlayground();
+    // try netPlayground();
+    try netPlayground2Peer();
     // try fookerPlayground();
     // try packetPlayground();
     //try idPlayground();
@@ -187,11 +188,6 @@ pub fn clientT1Handler(value: T1) void {
 }
 
 pub fn netPlayground() !void {
-    var x: u32 = 0;
-    
-    asd(@TypeOf(x), x);
-
-
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
     defer _ = gpa.deinit();
@@ -213,7 +209,7 @@ pub fn netPlayground() !void {
     var timeAccumulatorSeconds: f64 = 0;
     var sendTimerAccumulator1: f64 = 0;
     var sendTimerAccumulator2: f64 = 0;
-    const ticksPerSecond: f64 = 1.0;
+    const ticksPerSecond: f64 = 60.0;
     const tickPerSecondTime: f64 = 1.0/ticksPerSecond;
     std.log.debug("Started", .{});
 
@@ -249,6 +245,62 @@ pub fn netPlayground() !void {
 }
 
 
+pub fn netPlayground2Peer() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+    defer _ = gpa.deinit();
+    
+    try net.init();
+    defer net.deinit();
+
+    var server = try net.conn.Server.create(allocator, 8081);
+    defer server.destroy();
+
+    var client = try net.conn.Client.create(allocator, "127.0.0.1", 8081);
+    defer client.destroy();
+    try client.connect();
+
+    try server.registerPacketHandler(T1, serverT1Handler);
+    try client.registerPacketHandler(T1, clientT1Handler);
+    
+    var lastTime = std.time.milliTimestamp();
+    var timeAccumulatorSeconds: f64 = 0;
+    var sendTimerAccumulator1: f64 = 0;
+    var sendTimerAccumulator2: f64 = 0;
+    const ticksPerSecond: f64 = 60.0;
+    const tickPerSecondTime: f64 = 1.0/ticksPerSecond;
+    std.log.debug("Started", .{});
+
+    while(true) {
+        var currentTime = std.time.milliTimestamp();
+        var deltaTime: f64 = @intToFloat(f64, currentTime - lastTime) / 1000.0;  
+        lastTime = currentTime;
+
+        timeAccumulatorSeconds += deltaTime;
+        sendTimerAccumulator1 += deltaTime;
+        sendTimerAccumulator2 += deltaTime;
+
+        if(timeAccumulatorSeconds >= tickPerSecondTime) {
+            timeAccumulatorSeconds = 0;
+            try server.tick();
+            try client.tick();
+
+          if(sendTimerAccumulator1 >= 2) {
+                sendTimerAccumulator1 = -999;
+                try server.broadcast(T1{.age = 10}, .{});
+                std.log.debug("Server: broadcast", .{});
+            }
+
+            if(sendTimerAccumulator2 >= 2) {
+                sendTimerAccumulator2 = -999;
+                // var packetInfo1 = try net.data.PacketInfo(T1).init();
+                try client.send(T1{.age = 20}, .{});
+                std.log.debug("Client: send", .{});
+            }
+        }
+
+    }
+}
 
 
 
