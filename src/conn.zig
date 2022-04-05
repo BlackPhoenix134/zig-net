@@ -7,12 +7,13 @@ const utils = @import("utils.zig");
 
 const SendMode = enum(u8) {
     reliable,
-    unreliable_seuenced,
+    unreliable_sequenced,
     unreliable_unsequenced,
 };
 
 const SendOptions = struct {
-    mode: SendMode = SendMode.reliable
+    channel: u8 = 0,
+    mode: SendMode = SendMode.reliable,
 };
 
 fn serializePacket(stream: anytype, packet_value: anytype) !void {
@@ -22,17 +23,32 @@ fn serializePacket(stream: anytype, packet_value: anytype) !void {
    try s2s.serialize(stream, PacketType, packet_value);
 }
 
-fn createZenetPacket(allocator: std.mem.Allocator, packet_value: anytype) !*zenet.Packet {
+fn createZenetPacket(allocator: std.mem.Allocator, packet_value: anytype, options: SendOptions) !*zenet.Packet {
     // var buffer: [255]u8 = undefined; //ToDo: find a smart way to limit buffer length at runtime (calc size of packet info), because otherwise it sends the whole thing
     var buffer = std.ArrayList(u8).init(allocator);
     defer buffer.deinit();
     try serializePacket(buffer.writer(), packet_value);
-    return try zenet.Packet.create(buffer.items, .{});
+    var flags = zenet.PacketFlags{};
+    switch(options.mode) {
+        SendMode.reliable => {
+            flags.reliable = true;
+        },
+        SendMode.unreliable_sequenced => {
+            flags.reliable = false;
+            flags.unsequenced = false;
+        },
+        SendMode.unreliable_unsequenced => {
+            flags.reliable = false;
+            flags.unsequenced = true;
+        },
+    }
+
+    return try zenet.Packet.create(buffer.items, flags);
 }
 
-fn sendPacketTo(host: *zenet.Host, allocator: std.mem.Allocator, packet_value: anytype) !void {
-    var packet = try createZenetPacket(allocator, packet_value);
-    host.broadcast(0, packet);
+fn sendPacketTo(host: *zenet.Host, allocator: std.mem.Allocator, packet_value: anytype, options: SendOptions) !void {
+    var packet = try createZenetPacket(allocator, packet_value, options);
+    host.broadcast(options.channel, packet);
 }
 
 fn deserializationCapture(comptime T: type) fn (*ev.Dispatcher, []u8) anyerror!void {
@@ -85,8 +101,8 @@ pub const Server = struct {
     }
 
     //broadcasts to all peers connected
-    pub fn broadcast(self: *Self, value: anytype) !void {
-        try sendPacketTo(self.host, self.allocator, value);
+    pub fn broadcast(self: *Self, value: anytype, options: SendOptions) !void {
+        try sendPacketTo(self.host, self.allocator, value, options);
     }
 
     pub fn tick(self: *Self) !void {
@@ -225,8 +241,8 @@ pub const Client = struct {
     }
 
     //send to server
-    pub fn send(self: *Self, value: anytype) !void {
-        try sendPacketTo(self.host, self.allocator, value);
+    pub fn send(self: *Self, value: anytype, options: SendOptions) !void {
+        try sendPacketTo(self.host, self.allocator, value, options);
     }
 
     pub fn tick(self: *Self) !void {

@@ -233,14 +233,14 @@ pub fn netPlayground() !void {
 
           if(sendTimerAccumulator1 >= 2) {
                 sendTimerAccumulator1 = -999;
-                try server.broadcast(T1{.age = 10});
+                try server.broadcast(T1{.age = 10}, .{});
                 std.log.debug("Server: broadcast", .{});
             }
 
             if(sendTimerAccumulator2 >= 2) {
                 sendTimerAccumulator2 = -999;
                 // var packetInfo1 = try net.data.PacketInfo(T1).init();
-                try client.send(T1{.age = 20});
+                try client.send(T1{.age = 20}, .{});
                 std.log.debug("Client: send", .{});
             }
         }
