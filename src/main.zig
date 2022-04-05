@@ -102,6 +102,10 @@ pub fn s2sPlayground() !void {
 //     std.log.debug("{}", .{deserialized});
 }
 
+fn asd(comptime T: type, value: T) void{
+    std.log.debug("asd {}", .{value});
+}
+
 
 fn t1PacketCallback(value: T1) !void {
     std.log.debug("T1 callback {}", .{value});
@@ -183,6 +187,11 @@ pub fn clientT1Handler(value: T1) void {
 }
 
 pub fn netPlayground() !void {
+    var x: u32 = 0;
+    
+    asd(@TypeOf(x), x);
+
+
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
     defer _ = gpa.deinit();
@@ -227,17 +236,17 @@ pub fn netPlayground() !void {
           
 
           
-        //   if(sendTimerAccumulator1 >= 2) {
-        //         sendTimerAccumulator1 = 0;
-        //         var packetInfo1 = try net.data.PacketInfo(T1).init(T1{.age = 10});
-        //         try server.broadcast(packetInfo1);
-        //         std.log.debug("send packet", .{});
-        //     }
+          if(sendTimerAccumulator1 >= 2) {
+                sendTimerAccumulator1 = -999;
+                var packetInfo1 = try net.data.PacketInfo(T1).init(T1{.age = 10});
+                try server.broadcast(packetInfo1);
+                std.log.debug("send packet", .{});
+            }
 
             if(sendTimerAccumulator2 >= 4) {
-                sendTimerAccumulator2 = 0;
-                var packetInfo1 = try net.data.PacketInfo(T1).init(T1{.age = 20});
-                try client.send(packetInfo1);
+                sendTimerAccumulator2 = -999;
+                // var packetInfo1 = try net.data.PacketInfo(T1).init();
+                try client.send(T1{.age = 20});
                 std.log.debug("send packet to server", .{});
             }
         }

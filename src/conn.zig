@@ -5,15 +5,24 @@ const s2s = @import("s2s");
 const ev = @import("events");
 const utils = @import("utils.zig");
 
-fn createZenetPacket(allocator: std.mem.Allocator, packet_info: anytype) !*zenet.Packet {
+fn serializePacket(stream: anytype, packet_value: anytype) !void {
+   const PacketType: type = @TypeOf(packet_value);
+   const id = utils.typeId(PacketType);
+   try s2s.serialize(stream, u32, id);
+   try s2s.serialize(stream, PacketType, packet_value);
+}
+
+fn createZenetPacket(allocator: std.mem.Allocator, packet_value: anytype) !*zenet.Packet {
     // var buffer: [255]u8 = undefined; //ToDo: find a smart way to limit buffer length at runtime (calc size of packet info), because otherwise it sends the whole thing
     var buffer = std.ArrayList(u8).init(allocator);
-    defer buffer.deinit(); //bytes are copied, clearing buffer is fine ToDo: reuse buffer
-    try packet_info.serialize(buffer.writer());
+    defer buffer.deinit();
+    try serializePacket(buffer.writer(), packet_value);
     return try zenet.Packet.create(buffer.items, .{});
-    // // var stream = std.io.fixedBufferStream(&buffer);
-    // try packetInfo.serialize(stream.writer());
-    // return try zenet.Packet.create(&buffer, .{});
+}
+
+fn sendPacketTo(host: *zenet.Host, allocator: std.mem.Allocator, packet_value: anytype) !void {
+    var packet = try createZenetPacket(allocator, packet_value);
+    host.broadcast(0, packet);
 }
 
 fn deserializationCapture(comptime T: type) fn (*ev.Dispatcher, []u8) anyerror!void {
@@ -66,9 +75,8 @@ pub const Server = struct {
     }
 
     //broadcasts to all peers connected
-    pub fn broadcast(self: *Self, packet_info: anytype) !void {
-        var packet = try createZenetPacket(self.allocator, packet_info); //ToDo: cleanup
-        self.host.broadcast(0, packet);
+    pub fn broadcast(self: *Self, value: anytype) !void {
+        try sendPacketTo(self.host, self.allocator, value);
     }
 
     pub fn tick(self: *Self) !void {
@@ -207,9 +215,8 @@ pub const Client = struct {
     }
 
     //send to server
-    pub fn send(self: *Self, packet_info: anytype) !void {
-        var packet = try createZenetPacket(self.allocator, packet_info); //ToDo: cleanup
-        self.host.broadcast(0, packet);
+    pub fn send(self: *Self, value: anytype) !void {
+        try sendPacketTo(self.host, self.allocator, value);
     }
 
     pub fn tick(self: *Self) !void {
