@@ -228,25 +228,20 @@ pub fn netPlayground() !void {
 
         if(timeAccumulatorSeconds >= tickPerSecondTime) {
             timeAccumulatorSeconds = 0;
-            std.log.debug("tick server", .{});
             try server.tick();
-            std.log.debug("tick tick", .{});
             try client.tick();
 
-          
-
-          
           if(sendTimerAccumulator1 >= 2) {
                 sendTimerAccumulator1 = -999;
                 try server.broadcast(T1{.age = 10});
-                std.log.debug("send packet", .{});
+                std.log.debug("Server: broadcast", .{});
             }
 
-            if(sendTimerAccumulator2 >= 4) {
+            if(sendTimerAccumulator2 >= 2) {
                 sendTimerAccumulator2 = -999;
                 // var packetInfo1 = try net.data.PacketInfo(T1).init();
                 try client.send(T1{.age = 20});
-                std.log.debug("send packet to server", .{});
+                std.log.debug("Client: send", .{});
             }
         }
 

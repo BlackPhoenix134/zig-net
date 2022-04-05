@@ -5,6 +5,16 @@ const s2s = @import("s2s");
 const ev = @import("events");
 const utils = @import("utils.zig");
 
+const SendMode = enum(u8) {
+    reliable,
+    unreliable_seuenced,
+    unreliable_unsequenced,
+};
+
+const SendOptions = struct {
+    mode: SendMode = SendMode.reliable
+};
+
 fn serializePacket(stream: anytype, packet_value: anytype) !void {
    const PacketType: type = @TypeOf(packet_value);
    const id = utils.typeId(PacketType);
@@ -87,7 +97,7 @@ pub const Server = struct {
             switch (event.type) {
                 .connect => {
                     std.log.debug(
-                        "A new client connected from {d}:{d}.",
+                        "Server: A new client connected from {d}:{d}.",
                         .{ event.peer.?.address.host, event.peer.?.address.port },
                     );
                     self.client_connected_signal.publish(123);
@@ -95,8 +105,8 @@ pub const Server = struct {
                 .receive => {
                     if (event.packet) |packet| {
                         std.log.debug(
-                            "A packet of length {d} was received from {s} on channel {d}.",
-                            .{ packet.dataLength, event.peer.?.data, event.channelID },
+                            "Server: A packet of length {d} was received from {s} on channel {d}.",
+                            .{ packet.dataLength, event.peer.?.address, event.channelID },
                         );
 
                         var data_pointer: [*]u8 = packet.data.?;
@@ -108,12 +118,12 @@ pub const Server = struct {
                     }
                 },
                 .disconnect => {
-                    std.log.debug("{s} disconnected.", .{event.peer.?.data});
+                    std.log.debug("Server: {s} disconnected.", .{event.peer.?.data});
                     event.peer.?.data = null;
                     self.client_disconnected_signal.publish(456);
                 },
                 else => {
-                    std.log.debug("ugh!", .{});
+                    std.log.debug("Server: ugh!", .{});
                 },
             }
         }
@@ -125,7 +135,7 @@ pub const Server = struct {
         if(!self.packet_deserializer.contains(typeId)) {
             var deserialize_func = deserializationCapture(T);
             try self.packet_deserializer.put(typeId, deserialize_func);
-            std.log.debug("registerd handler for {}", .{T});
+            std.log.debug("Server: registerd handler for {}", .{T});
         }
     }
 
@@ -139,7 +149,7 @@ pub const Server = struct {
            try handler(&self.packet_received_dispatcher, buffer[stream.pos..buffer.len]);
         }   
         else {
-            std.log.info("No handler registered for packet id {}", .{id});
+            std.log.info("Server: No handler registered for packet id {}", .{id});
         }
     }
 };
@@ -189,7 +199,7 @@ pub const Client = struct {
         var event: zenet.Event = std.mem.zeroes(zenet.Event);
         if (try self.host.service(&event, 5000)) {
             if (event.type == zenet.EventType.connect) {
-                std.log.debug("Connection to 127.0.0.1:7777 succeeded!", .{});
+                std.log.debug("Client: Connection to 127.0.0.1:7777 succeeded!", .{});
                 self.connected_signal.publish(123);
             }
         }
@@ -206,7 +216,7 @@ pub const Client = struct {
                     }
                 },
                 .disconnect => {
-                    std.log.debug("Disconnect succeeded!", .{});
+                    std.log.debug("Client: Disconnect succeeded!", .{});
                     self.disconnected_signal.publish(456);
                 },
                 else => {},
@@ -225,7 +235,7 @@ pub const Client = struct {
             switch (event.type) {
                 .receive => {
                     if (event.packet) |packet| {
-                        std.log.debug("A packet of length {d} was received from {d}:{d} on channel {d}.", .{
+                        std.log.debug("Client: A packet of length {d} was received from {d}:{d} on channel {d} .", .{
                             packet.dataLength,
                             event.peer.?.address.host,
                             event.peer.?.address.port,
@@ -250,7 +260,7 @@ pub const Client = struct {
         if(!self.packet_deserializer.contains(typeId)) {
             var deserialize_func = deserializationCapture(T);
             try self.packet_deserializer.put(typeId, deserialize_func);
-            std.log.debug("registerd handler for {}", .{T});
+            std.log.debug("Client: registerd handler for {}", .{T});
         }
     }
 
@@ -264,7 +274,7 @@ pub const Client = struct {
            try handler(&self.packet_received_dispatcher, buffer[stream.pos..buffer.len]);
         }   
         else {
-            std.log.info("No handler registered for packet id {}", .{id});
+            std.log.info("Client: No handler registered for packet id {}", .{id});
         }
     }
 };
