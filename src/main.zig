@@ -238,8 +238,7 @@ pub fn netPlayground() !void {
           
           if(sendTimerAccumulator1 >= 2) {
                 sendTimerAccumulator1 = -999;
-                var packetInfo1 = try net.data.PacketInfo(T1).init(T1{.age = 10});
-                try server.broadcast(packetInfo1);
+                try server.broadcast(T1{.age = 10});
                 std.log.debug("send packet", .{});
             }
 
