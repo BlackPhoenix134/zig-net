@@ -117,6 +117,7 @@ pub const Server = struct {
                         .{ event.peer.?.address.host, event.peer.?.address.port },
                     );
                     self.client_connected_signal.publish(123);
+                    std.log.debug("count: {}", .{self.host.peerCount});
                 },
                 .receive => {
                     if (event.packet) |packet| {
@@ -218,6 +219,8 @@ pub const Client = struct {
                 std.log.debug("Client: Connection to 127.0.0.1:7777 succeeded!", .{});
                 self.connected_signal.publish(123);
             }
+        } else {
+                std.log.debug("Client: Timeout, connection not succeeded!", .{});
         }
     }
 
