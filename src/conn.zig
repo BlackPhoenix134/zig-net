@@ -119,12 +119,16 @@ pub const Server = struct {
         self.allocator.destroy(self);
     }
 
-    //broadcasts to all peers connected
-    pub fn send(self: *Self, value: anytype, options: SendOptions) !void {
-        try sendBroadcast(self.host, self.allocator, value, options);
+    //send date, peer_id 0 is host and means broadcast  
+    pub fn send(self: *Self, peer_id: u32, value: anytype, options: SendOptions) !void {
+        if(peer_id == 0) {
+            try sendBroadcast(self.host, self.allocator, value, options);
+        } else {
+            try self.sendTo(peer_id, value, options);
+        }
     }
 
-    pub fn sendTo(self: *Self, value: anytype, peer_id: u32, options: SendOptions) !void {
+    fn sendTo(self: *Self, peer_id: u32, value: anytype, options: SendOptions) !void {
         var peer_maybe = self.id_to_connected_peers.get(peer_id);
         if(peer_maybe) |peer| {
             try sendToPeer(peer, self.allocator, value, options);

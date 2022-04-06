@@ -295,10 +295,10 @@ pub fn netPlayground2Peer() !void {
           if(sendTimerAccumulator1 >= 5) {
                 sendTimerAccumulator1 = -999;
                 // try server.send(T1{.age = 10}, .{});
-                try server.sendTo(T1{.age = 200}, 1, .{});
-                try server.sendTo(T1{.age = 201}, 1, .{});
-                try server.sendTo(T1{.age = 99}, 2, .{});
-                try server.send(T1{.age = 99}, .{});
+                try server.send(1, T1{.age = 200}, .{});
+                try server.send(1, T1{.age = 201}, .{});
+                try server.send(2, T1{.age = 99}, .{});
+                try server.send(0, T1{.age = 99}, .{});
             }
 
             if(sendTimerAccumulator2 >= 2) {
