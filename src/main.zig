@@ -253,7 +253,7 @@ pub fn netPlayground2Peer() !void {
     try net.init();
     defer net.deinit();
 
-    var server = try net.conn.Server.create(allocator, 8081);
+    var server = try net.conn.Server.create(allocator, 8081, .{});
     defer server.destroy();
     try server.registerPacketHandler(T1, serverT1Handler);
 
@@ -265,8 +265,8 @@ pub fn netPlayground2Peer() !void {
 
     var client2 = try net.conn.Client.create(allocator, "127.0.0.1", 8081);
     defer client2.destroy();
+    try client2.connect();
     try client2.registerPacketHandler(T1, clientT1Handler);
-                try client2.connect();
   
     
     var lastTime = std.time.milliTimestamp();
@@ -292,18 +292,19 @@ pub fn netPlayground2Peer() !void {
             try client.tick();
             try client2.tick();
 
-          if(sendTimerAccumulator1 >= 2) {
+          if(sendTimerAccumulator1 >= 5) {
                 sendTimerAccumulator1 = -999;
-                try server.broadcast(T1{.age = 10}, .{});
-                std.log.debug("Server: broadcast", .{});
+                // try server.send(T1{.age = 10}, .{});
+                try server.sendTo(T1{.age = 200}, 1, .{});
+                try server.sendTo(T1{.age = 201}, 1, .{});
+                try server.sendTo(T1{.age = 99}, 2, .{});
+                try server.send(T1{.age = 99}, .{});
             }
 
             if(sendTimerAccumulator2 >= 2) {
                 sendTimerAccumulator2 = -999;
-                // var packetInfo1 = try net.data.PacketInfo(T1).init();
-                try client.send(T1{.age = 20}, .{});
-                std.log.debug("Client: send", .{});
-
+            //     try client.send(T1{.age = 20}, .{});
+            //     std.log.debug("Client: send", .{});
             }
         }
 

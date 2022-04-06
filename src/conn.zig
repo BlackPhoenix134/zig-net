@@ -46,9 +46,14 @@ fn createZenetPacket(allocator: std.mem.Allocator, packet_value: anytype, option
     return try zenet.Packet.create(buffer.items, flags);
 }
 
-fn sendPacketTo(host: *zenet.Host, allocator: std.mem.Allocator, packet_value: anytype, options: SendOptions) !void {
+fn sendBroadcast(host: *zenet.Host, allocator: std.mem.Allocator, packet_value: anytype, options: SendOptions) !void {
     var packet = try createZenetPacket(allocator, packet_value, options);
     host.broadcast(options.channel, packet);
+}
+
+fn sendToPeer(peer: *zenet.Peer, allocator: std.mem.Allocator, packet_value: anytype, options: SendOptions) !void {
+    var packet = try createZenetPacket(allocator, packet_value, options);
+    try peer.send(options.channel, packet);
 }
 
 fn deserializationCapture(comptime T: type) fn (*ev.Dispatcher, []u8) anyerror!void {
@@ -61,6 +66,11 @@ fn deserializationCapture(comptime T: type) fn (*ev.Dispatcher, []u8) anyerror!v
      }.handler);
 }
 
+pub const ServerConfig = struct {
+    max_peers: usize = 32,
+    //0 == protocol max limit
+    max_channels: usize = 0
+};
 
 pub const Server = struct {
     const Self = @This();
@@ -73,12 +83,17 @@ pub const Server = struct {
     packet_received_dispatcher: ev.Dispatcher,
     packet_deserializer: std.AutoHashMap(u32, (fn (*ev.Dispatcher, []u8) anyerror!void)),
 
-    pub fn create(allocator: std.mem.Allocator, port: u16) !*Self {
+    connected_peers_to_id: std.AutoHashMap(*zenet.Peer, u32),
+    id_to_connected_peers: std.AutoHashMap(u32, *zenet.Peer),
+
+    next_peer_id: u32 = 1, //host is 0
+
+    pub fn create(allocator: std.mem.Allocator, port: u16, config: ServerConfig) !*Self {
         var ptr = try allocator.create(Self);
         var address: zenet.Address = std.mem.zeroes(zenet.Address);
         address.host = zenet.HOST_ANY;
         address.port = port;
-        var host = try zenet.Host.create(address, 1, 1, 0, 0);
+        var host = try zenet.Host.create(address, config.max_peers, config.max_channels, 0, 0);
         ptr.* = .{
             .allocator = allocator,
             .address = address,
@@ -87,11 +102,15 @@ pub const Server = struct {
             .client_disconnected_signal = ev.Signal(u32).create(allocator),
             .packet_received_dispatcher = ev.Dispatcher.init(allocator),
             .packet_deserializer = std.AutoHashMap(u32, (fn (*ev.Dispatcher, []u8) anyerror!void)).init(allocator),
+            .connected_peers_to_id = std.AutoHashMap(*zenet.Peer, u32).init(allocator),
+            .id_to_connected_peers = std.AutoHashMap(u32, *zenet.Peer).init(allocator),
             };
         return ptr;
     }
 
     pub fn destroy(self: *Self) void {
+        self.id_to_connected_peers.deinit();
+        self.connected_peers_to_id.deinit();
         self.packet_deserializer.deinit();
         self.packet_received_dispatcher.deinit();
         self.client_disconnected_signal.deinit();
@@ -101,8 +120,18 @@ pub const Server = struct {
     }
 
     //broadcasts to all peers connected
-    pub fn broadcast(self: *Self, value: anytype, options: SendOptions) !void {
-        try sendPacketTo(self.host, self.allocator, value, options);
+    pub fn send(self: *Self, value: anytype, options: SendOptions) !void {
+        try sendBroadcast(self.host, self.allocator, value, options);
+    }
+
+    pub fn sendTo(self: *Self, value: anytype, peer_id: u32, options: SendOptions) !void {
+        var peer_maybe = self.id_to_connected_peers.get(peer_id);
+        if(peer_maybe) |peer| {
+            try sendToPeer(peer, self.allocator, value, options);
+        } 
+        else {
+            return error.PeerNotFound;
+        }
     }
 
     pub fn tick(self: *Self) !void {
@@ -116,8 +145,13 @@ pub const Server = struct {
                         "Server: A new client connected from {d}:{d}.",
                         .{ event.peer.?.address.host, event.peer.?.address.port },
                     );
+                    var new_peer_id = self.next_peer_id;
+                    self.next_peer_id += 1;
+
+                    try self.connected_peers_to_id.put(event.peer.?, new_peer_id);
+                    try self.id_to_connected_peers.put(new_peer_id, event.peer.?);
+
                     self.client_connected_signal.publish(123);
-                    std.log.debug("count: {}", .{self.host.peerCount});
                 },
                 .receive => {
                     if (event.packet) |packet| {
@@ -136,6 +170,10 @@ pub const Server = struct {
                 },
                 .disconnect => {
                     std.log.debug("Server: {s} disconnected.", .{event.peer.?.data});
+                    var peer = event.peer.?;
+                    var id = self.connected_peers_to_id.get(peer);
+                    _ = self.connected_peers_to_id.remove(peer);
+                     _ = self.id_to_connected_peers.remove(id.?);
                     event.peer.?.data = null;
                     self.client_disconnected_signal.publish(456);
                 },
@@ -214,13 +252,11 @@ pub const Client = struct {
     pub fn connect(self: *Self) !void {
         self.peer = try self.host.connect(self.address, 1, 0);
         var event: zenet.Event = std.mem.zeroes(zenet.Event);
-        if (try self.host.service(&event, 5000)) {
+        if (try self.host.service(&event, 0)) {
             if (event.type == zenet.EventType.connect) {
                 std.log.debug("Client: Connection to 127.0.0.1:7777 succeeded!", .{});
                 self.connected_signal.publish(123);
             }
-        } else {
-                std.log.debug("Client: Timeout, connection not succeeded!", .{});
         }
     }
 
@@ -245,7 +281,7 @@ pub const Client = struct {
 
     //send to server
     pub fn send(self: *Self, value: anytype, options: SendOptions) !void {
-        try sendPacketTo(self.host, self.allocator, value, options);
+        try sendBroadcast(self.host, self.allocator, value, options);
     }
 
     pub fn tick(self: *Self) !void {
