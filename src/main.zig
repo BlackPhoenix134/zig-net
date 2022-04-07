@@ -298,7 +298,7 @@ pub fn netPlayground2Peer() !void {
                 try server.send(1, T1{.age = 200}, .{});
                 try server.send(1, T1{.age = 201}, .{});
                 try server.send(2, T1{.age = 99}, .{});
-                try server.send(0, T1{.age = 99}, .{});
+                try server.send(0, T1{.age = 100}, .{});
             }
 
             if(sendTimerAccumulator2 >= 2) {
