@@ -155,7 +155,7 @@ pub const Server = struct {
                     try self.connected_peers_to_id.put(event.peer.?, new_peer_id);
                     try self.id_to_connected_peers.put(new_peer_id, event.peer.?);
 
-                    self.client_connected_signal.publish(123);
+                    self.client_connected_signal.publish(new_peer_id);
                 },
                 .receive => {
                     if (event.packet) |packet| {
@@ -179,7 +179,7 @@ pub const Server = struct {
                     _ = self.connected_peers_to_id.remove(peer);
                      _ = self.id_to_connected_peers.remove(id.?);
                     event.peer.?.data = null;
-                    self.client_disconnected_signal.publish(456);
+                    self.client_disconnected_signal.publish(id);
                 },
                 else => {
                     std.log.debug("Server: ugh!", .{});
@@ -259,7 +259,7 @@ pub const Client = struct {
         if (try self.host.service(&event, 0)) {
             if (event.type == zenet.EventType.connect) {
                 std.log.debug("Client: Connection to 127.0.0.1:7777 succeeded!", .{});
-                self.connected_signal.publish(123);
+                self.connected_signal.publish(0); //ToDo:
             }
         }
     }
@@ -276,7 +276,7 @@ pub const Client = struct {
                 },
                 .disconnect => {
                     std.log.debug("Client: Disconnect succeeded!", .{});
-                    self.disconnected_signal.publish(456);
+                    self.disconnected_signal.publish(0);  //ToDo:
                 },
                 else => {},
             }
