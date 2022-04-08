@@ -175,9 +175,9 @@ pub const Server = struct {
                 .disconnect => {
                     std.log.debug("Server: {s} disconnected.", .{event.peer.?.data});
                     var peer = event.peer.?;
-                    var id = self.connected_peers_to_id.get(peer);
+                    var id = self.connected_peers_to_id.get(peer).?;
                     _ = self.connected_peers_to_id.remove(peer);
-                     _ = self.id_to_connected_peers.remove(id.?);
+                     _ = self.id_to_connected_peers.remove(id);
                     event.peer.?.data = null;
                     self.client_disconnected_signal.publish(id);
                 },
