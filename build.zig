@@ -4,7 +4,7 @@ pub fn build(b: *std.build.Builder) void {
     const target = b.standardTargetOptions(.{});
     const mode = b.standardReleaseOptions();
 
-    const main_exe = b.addExecutable("main", "src/main.zig");
+    const main_exe = b.addExecutable("main", "examples/main.zig");
     main_exe.setTarget(target);
     main_exe.setBuildMode(mode);
     main_exe.want_lto = false;

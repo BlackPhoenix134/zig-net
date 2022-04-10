@@ -3,7 +3,6 @@ const net = @import("net");
 const s2s = @import("s2s");
 const zenet = @import("zenet");
 const ev = @import("events");
-const utils = @import("utils.zig");
 
 const T1 = struct {
     age: u32
@@ -102,81 +101,6 @@ pub fn s2sPlayground() !void {
 //     std.log.debug("{}", .{val1});
 //     std.log.debug("{}", .{deserialized});
 }
-
-fn asd(comptime T: type, value: T) void{
-    std.log.debug("asd {}", .{value});
-}
-
-
-fn t1PacketCallback(value: T1) !void {
-    std.log.debug("T1 callback {}", .{value});
-}
-
-
-fn t2PacketCallback(value: T1) !void {
-    std.log.debug("T2 callback {}", .{value});
-}
-
-pub fn packetReceived(value: net.data.PacketReceivedData) void {
-    std.log.debug("GOT SHIT {}", .{value.container.id});
-    switch(value.container.id) {
-        utils.typeId(T1) => {
-            var info = net.data.PacketInfo(T1).deserializeRaw(value.container);
-            std.log.debug("T1: {}", info);
-        },
-        utils.typeId(T2) => {
-            var info = net.data.PacketInfo(T1).deserializeRaw(value.container);
-            std.log.debug("T2: {}", info);
-        },
-        else => unreachable,
-    }
-}
-
-pub const Callbacks = struct {
-    dispatcher: ev.Dispatcher
-};
-
-pub fn fooker(comptime T: type) fn (*Callbacks) void {
-     return (struct {
-        pub fn shit(thing: *Callbacks) void {
-            thing.dispatcher.trigger(T, 10);
-            // std.log.debug("I know the type... {s}, thing: {}\n", .{ @typeName(T), thing });
-        }
-     }.shit);
-}
-
-pub fn printU32(value: u32) void {
-    std.log.debug("printU32 {}", .{value});
-}
-
-pub fn printU8(value: u8) void {
-    std.log.debug("printI64 {}", .{value});
-}
-
-pub fn fookerPlayground() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-    defer _ = gpa.deinit();
-    
-    var callbacks = Callbacks{
-        .dispatcher = ev.Dispatcher.init(allocator)
-    };
-    defer callbacks.dispatcher.deinit();
-
-    callbacks.dispatcher.sink(u32).connect(printU32);
-    callbacks.dispatcher.sink(u8).connect(printU8);
-
-    var func1 = fooker(u32);
-    var func2 = fooker(u8);
-
-    magic(func1, &callbacks);
-    magic(func2, &callbacks);
-}
-
-pub fn magic(fun: fn(*Callbacks) void, callbacks: *Callbacks) void {
-    fun(callbacks);
-}
-
 
 pub fn serverT1Handler(value: T1) void {
     std.log.debug("Got T1 Server {}", .{value});
