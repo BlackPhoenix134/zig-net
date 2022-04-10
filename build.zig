@@ -17,6 +17,19 @@ pub fn build(b: *std.build.Builder) void {
     link(b, main_exe, target, false);
 
  
+
+    const main_flecs_exe = b.addExecutable("main_flecs", "examples/main_flecs.zig");
+    main_flecs_exe.setTarget(target);
+    main_flecs_exe.setBuildMode(mode);
+    main_flecs_exe.want_lto = false;
+    main_flecs_exe.install();
+
+    const main_flecs_run = main_flecs_exe.run();
+    const main_flecs_step = b.step("flecs", "Runs main_flecs");
+    main_flecs_step.dependOn(&main_flecs_run.step);
+
+    link(b, main_flecs_exe, target, true);
+
 }
 
 pub fn link(b: *std.build.Builder, step: *std.build.LibExeObjStep, target: std.zig.CrossTarget, comptime withFlecs: bool) void {
@@ -54,7 +67,5 @@ pub fn link(b: *std.build.Builder, step: *std.build.LibExeObjStep, target: std.z
     if(withFlecs) {
         const flecs_builder = @import("libs/zig-flecs/build.zig");
         flecs_builder.linkArtifact(b, step, target, flecs_builder.LibType.static, project_dir ++ "libs/zig-flecs/");
-    } else {
-
     }
 }
