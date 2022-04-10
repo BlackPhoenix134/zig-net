@@ -1,30 +1,6 @@
 const std = @import("std");
 
 pub fn build(b: *std.build.Builder) void {
-    const s2s_pkg = std.build.Pkg{
-        .name = "s2s",
-        .path = .{ .path = "libs/s2s/src/s2s.zig" },
-    };
-
-    const zenet_pkg = std.build.Pkg{
-        .name = "zenet",
-        .path = .{ .path = "libs/zenet/src/zenet.zig" },
-    };
-
-    const events_pkg = std.build.Pkg{
-        .name = "events",
-        .path = .{ .path = "libs/events/src/events.zig" },
-    };
-
-    const zig_net_pkg = std.build.Pkg{
-        .name = "net",
-        .path = .{ .path = "src/net.zig" },
-        .dependencies = &[_]std.build.Pkg {
-                s2s_pkg, zenet_pkg, events_pkg
-        },
-    };
-
-
     const target = b.standardTargetOptions(.{});
     const mode = b.standardReleaseOptions();
 
@@ -38,15 +14,12 @@ pub fn build(b: *std.build.Builder) void {
     const main_run_step = b.step("run", "Runs main");
     main_run_step.dependOn(&main_run.step);
 
-    main_exe.addPackage(zig_net_pkg);
-    @import("libs/zenet/build.zig").link(b, main_exe);
-    main_exe.addPackage(zenet_pkg);
-    main_exe.addPackage(s2s_pkg);
-    main_exe.addPackage(events_pkg);
+    link(b, main_exe, target, false);
+
+ 
 }
 
-
-pub fn link(b: *std.build.Builder, step: *std.build.LibExeObjStep) void {
+pub fn link(b: *std.build.Builder, step: *std.build.LibExeObjStep, target: std.zig.CrossTarget, comptime withFlecs: bool) void {
     const path = @src().file;
     const last_idx = path.len - "/build.zig".len;
     const project_dir = path[0..last_idx+1];
@@ -74,6 +47,14 @@ pub fn link(b: *std.build.Builder, step: *std.build.LibExeObjStep) void {
         },
     };
     
-    _ = b;
+    const zenet_builder = @import("libs/zenet/build.zig");
+    zenet_builder.link(b, step);
     step.addPackage(zig_net_pkg);
+
+    if(withFlecs) {
+        const flecs_builder = @import("libs/zig-flecs/build.zig");
+        flecs_builder.linkArtifact(b, step, target, flecs_builder.LibType.static, project_dir ++ "libs/zig-flecs/");
+    } else {
+
+    }
 }
