@@ -16,8 +16,6 @@ pub fn build(b: *std.build.Builder) void {
 
     link(b, main_exe, target, false);
 
- 
-
     const main_flecs_exe = b.addExecutable("main_flecs", "examples/main_flecs.zig");
     main_flecs_exe.setTarget(target);
     main_flecs_exe.setBuildMode(mode);
@@ -29,13 +27,13 @@ pub fn build(b: *std.build.Builder) void {
     main_flecs_step.dependOn(&main_flecs_run.step);
 
     link(b, main_flecs_exe, target, true);
-
 }
 
+//ToDo: externaly provide flecs package, so you can choose version / dont have to have a copy of flecs in this lib folder
 pub fn link(b: *std.build.Builder, step: *std.build.LibExeObjStep, target: std.zig.CrossTarget, comptime withFlecs: bool) void {
     const path = @src().file;
     const last_idx = path.len - "/build.zig".len;
-    const project_dir = path[0..last_idx+1];
+    const project_dir = path[0 .. last_idx + 1];
 
     const s2s_pkg = std.build.Pkg{
         .name = "s2s",
@@ -51,20 +49,18 @@ pub fn link(b: *std.build.Builder, step: *std.build.LibExeObjStep, target: std.z
         .name = "events",
         .path = .{ .path = project_dir ++ "libs/events/src/events.zig" },
     };
-
-    const zig_net_pkg = std.build.Pkg{
-        .name = "net",
-        .path = .{ .path = project_dir ++ "src/net.zig" },
-        .dependencies = &[_]std.build.Pkg {
-                s2s_pkg, zenet_pkg, events_pkg
-        },
-    };
     
+    const zig_net_pkg = std.build.Pkg {
+            .name = "net",
+            .path = .{ .path = project_dir ++ "src/net.zig" },
+            .dependencies = &[_]std.build.Pkg{ s2s_pkg, zenet_pkg, events_pkg },
+    };
+
     const zenet_builder = @import("libs/zenet/build.zig");
     zenet_builder.link(b, step);
     step.addPackage(zig_net_pkg);
 
-    if(withFlecs) {
+    if (withFlecs) {
         const flecs_builder = @import("libs/zig-flecs/build.zig");
         flecs_builder.linkArtifact(b, step, target, flecs_builder.LibType.static, project_dir ++ "libs/zig-flecs/");
     }
