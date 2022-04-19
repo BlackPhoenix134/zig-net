@@ -7,6 +7,7 @@ const ev = @import("events");
 
 pub fn main() !void {
     try netPlayground();
+    try flecsMultiWorld();
 }
 
 
@@ -18,4 +19,7 @@ pub fn netPlayground() !void {
     _ = allocator;
     try net.init();
     defer net.deinit();
+
+
+
 }
