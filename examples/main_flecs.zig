@@ -6,8 +6,25 @@ const ev = @import("events");
 
 
 pub fn main() !void {
-    try netPlayground();
-    try flecsMultiWorld();
+    var ga = std.testing.allocator;
+    var it = try std.process.argsWithAllocator(ga);
+    defer it.deinit();
+    _ = it.skip(); //exe
+    var startup_param_maybe = it.next();
+    
+    if(startup_param_maybe) |startup_param| {
+        std.log.debug("{s}", .{startup_param});
+
+        if(std.mem.eql(u8, startup_param, "server")) {
+            std.log.debug("starting as dedicated server", .{});
+            
+        } else if(std.mem.eql(u8, startup_param, "client")) {
+            std.log.debug("starting and connecting to localhost", .{});
+            
+        }
+    } else {
+        std.log.debug("Default startup mode", .{});
+    }
 }
 
 
@@ -19,7 +36,4 @@ pub fn netPlayground() !void {
     _ = allocator;
     try net.init();
     defer net.deinit();
-
-
-
 }

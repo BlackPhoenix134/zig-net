@@ -11,7 +11,7 @@ pub fn build(b: *std.build.Builder) void {
     main_exe.install();
 
     const main_run = main_exe.run();
-    const main_run_step = b.step("run", "Runs main");
+    const main_run_step = b.step("run-main", "Runs main");
     main_run_step.dependOn(&main_run.step);
 
     link(b, main_exe, target, false);
@@ -23,8 +23,11 @@ pub fn build(b: *std.build.Builder) void {
     main_flecs_exe.install();
 
     const main_flecs_run = main_flecs_exe.run();
-    const main_flecs_step = b.step("flecs", "Runs main_flecs");
+
+    const main_flecs_step = b.step("run-flecs", "Runs main_flecs");
     main_flecs_step.dependOn(&main_flecs_run.step);
+
+
 
     link(b, main_flecs_exe, target, true);
 }
