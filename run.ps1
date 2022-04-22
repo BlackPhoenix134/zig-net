@@ -8,5 +8,5 @@ if($LASTEXITCODE -ne 0) {
     throw "Error"
 }
     
-Start-Process cmd -Argument "-NoExit /c $Exe server"
+Start-Process cmd -Argument "/k $Exe server"
 & "$Exe" "client"

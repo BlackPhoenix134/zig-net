@@ -164,7 +164,6 @@ pub fn netPlayground() !void {
                 std.log.debug("Client: send", .{});
             }
         }
-
     }
 }
 

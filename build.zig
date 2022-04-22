@@ -59,11 +59,18 @@ pub fn link(b: *std.build.Builder, step: *std.build.LibExeObjStep, target: std.z
             .dependencies = &[_]std.build.Pkg{ s2s_pkg, zenet_pkg, events_pkg },
     };
 
+    const ecs_net_pkg = std.build.Pkg {
+            .name = "ecs_net",
+            .path = .{ .path = project_dir ++ "src/ecs-module/ecs_net.zig" },
+            .dependencies = &[_]std.build.Pkg{ s2s_pkg, zenet_pkg, events_pkg, zig_net_pkg },
+    };
+
     const zenet_builder = @import("libs/zenet/build.zig");
     zenet_builder.link(b, step);
     step.addPackage(zig_net_pkg);
 
     if (withFlecs) {
+        step.addPackage(ecs_net_pkg);
         const flecs_builder = @import("libs/zig-flecs/build.zig");
         flecs_builder.linkArtifact(b, step, target, flecs_builder.LibType.static, project_dir ++ "libs/zig-flecs/");
     }
