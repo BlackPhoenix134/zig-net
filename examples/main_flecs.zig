@@ -32,6 +32,26 @@ pub fn startServer() !void {
     _ = allocator;
     try net.init();
     defer net.deinit();
+ 
+    var server = try ecs_net.sc.EcsServer.create(allocator, 8081, .{});
+    defer server.destroy();
+
+    var lastTime = std.time.milliTimestamp();
+    var timeAccumulatorSeconds: f64 = 0;
+    const ticksPerSecond: f64 = 60.0;
+    const tickPerSecondTime: f64 = 1.0/ticksPerSecond; 
+   
+    while(true) {
+        var currentTime = std.time.milliTimestamp();
+        var deltaTime: f64 = @intToFloat(f64, currentTime - lastTime) / 1000.0;  
+        lastTime = currentTime;
+
+        timeAccumulatorSeconds += deltaTime;
+        if(timeAccumulatorSeconds >= tickPerSecondTime) {
+            timeAccumulatorSeconds = 0;
+            try server.tick();
+        }
+    }
 }
 
 pub fn startClient() !void {
@@ -42,5 +62,24 @@ pub fn startClient() !void {
     try net.init();
     defer net.deinit();
 
+    var client = try ecs_net.sc.EcsClient.create(allocator, "127.0.0.1", 8081);
+    defer client.destroy();
+    try client.connect();
 
+    var lastTime = std.time.milliTimestamp();
+    var timeAccumulatorSeconds: f64 = 0;
+    const ticksPerSecond: f64 = 60.0;
+    const tickPerSecondTime: f64 = 1.0/ticksPerSecond;   
+
+    while(true) {
+        var currentTime = std.time.milliTimestamp();
+        var deltaTime: f64 = @intToFloat(f64, currentTime - lastTime) / 1000.0;  
+        lastTime = currentTime;
+        timeAccumulatorSeconds += deltaTime;
+
+        if(timeAccumulatorSeconds >= tickPerSecondTime) {
+            timeAccumulatorSeconds = 0;
+            try client.tick();
+        }
+    }
 }

@@ -1,16 +1,20 @@
 const std = @import("std");
 const net = @import("net");
 
+pub const EcsConfig = struct {
+    server_config: net.conn.ServerConfig = .{},
+};
+
 pub const EcsServer = struct {
     const Self = @This();
     allocator: std.mem.Allocator,
-    server: net.conn.Server,
+    server: *net.conn.Server,
 
-    pub fn create(allocator: std.mem.Allocator, port: u16, config: net.conn.ServerConfig) !*Self {
+    pub fn create(allocator: std.mem.Allocator, port: u16, config: EcsConfig) !*Self {
         var ptr = try allocator.create(Self);
         ptr.* = .{
             .allocator = allocator,
-            .server = try net.conn.Server.create(allocator, port, config)
+            .server = try net.conn.Server.create(allocator, port, config.server_config)
             };
         return ptr;
     }
@@ -29,7 +33,7 @@ pub const EcsServer = struct {
 pub const EcsClient = struct {
     const Self = @This();
     allocator: std.mem.Allocator,
-    client: net.conn.Client,
+    client: *net.conn.Client,
 
     pub fn create(allocator: std.mem.Allocator, hostIp: [*:0]const u8, port: u16) !*Self {
         var ptr = try allocator.create(Self);

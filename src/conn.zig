@@ -1,6 +1,5 @@
 const std = @import("std");
 const zenet = @import("zenet");
-const data = @import("data.zig");
 const s2s = @import("s2s");
 const ev = @import("events");
 const utils = @import("utils.zig");
